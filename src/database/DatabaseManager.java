@@ -2,6 +2,11 @@ package database;
 
 import java.sql.*;
 
+/**
+ * Singleton Pattern: DatabaseManager
+ * Manages database connection and ensures only one connection exists
+ * Thread-safe implementation for database operations
+ */
 public class DatabaseManager {
     private static final String DB_URL = "jdbc:sqlite:moviebooking.db";
     private static DatabaseManager instance;
@@ -13,12 +18,13 @@ public class DatabaseManager {
             Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection(DB_URL);
             createTables();
+            System.out.println("DatabaseManager initialized successfully (Singleton Pattern)");
         } catch (ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
     }
     
-    public static DatabaseManager getInstance() {
+    public static synchronized DatabaseManager getInstance() {
         if (instance == null) {
             instance = new DatabaseManager();
         }

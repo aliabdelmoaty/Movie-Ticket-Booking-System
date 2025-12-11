@@ -5,6 +5,10 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.io.File;
 import core.BookingSystem;
+import builder.MovieBuilder;
+import factory.MovieFactory;
+import factory.MovieFactory.MovieType;
+import model.Movie;
 
 public class AddMovieDialog extends JDialog {
     private JTextField titleField;
@@ -18,7 +22,7 @@ public class AddMovieDialog extends JDialog {
     
     public AddMovieDialog(Frame parent) {
         super(parent, "Add New Movie", true);
-        setSize(600, 700);
+        setSize(700, 700);
         setLocationRelativeTo(parent);
         setResizable(false);
         
@@ -50,10 +54,18 @@ public class AddMovieDialog extends JDialog {
         mainPanel.add(titleField);
         mainPanel.add(Box.createVerticalStrut(15));
         
-        // Genre
-        mainPanel.add(createLabel("Genre *"));
+        // Genre - Using Factory Pattern
+        mainPanel.add(createLabel("Genre * (Use Movie Type)"));
+        String[] movieTypes = {"ACTION", "COMEDY", "DRAMA", "HORROR", "SCIFI", "ROMANCE", "THRILLER"};
+        JComboBox<String> genreCombo = new JComboBox<>(movieTypes);
+        genreCombo.setFont(new Font("Spline Sans", Font.PLAIN, 14));
+        genreCombo.setMaximumSize(new Dimension(450, 45));
+        genreCombo.setBackground(new Color(28, 31, 39));
+        genreCombo.setForeground(Color.WHITE);
         genreField = createTextField();
-        mainPanel.add(genreField);
+        genreField.setText("ACTION"); // Default
+        genreCombo.addActionListener(e -> genreField.setText((String)genreCombo.getSelectedItem()));
+        mainPanel.add(genreCombo);
         mainPanel.add(Box.createVerticalStrut(15));
         
         // Duration
@@ -227,13 +239,19 @@ public class AddMovieDialog extends JDialog {
             return;
         }
         
-        // Add movie to database
-        BookingSystem system = BookingSystem.getInstance();
-        boolean added = system.addMovie(title, genre, duration, rating, 
-            description.isEmpty() ? "No description available." : description,
-            posterPath.isEmpty() ? null : posterPath);
+        // Use Factory Pattern to create movie based on genre
+        MovieType movieType = MovieFactory.getMovieType(genre);
+        Movie movie = MovieFactory.createMovie(
+            movieType,
+            title,
+            duration,
+            rating,
+            description.isEmpty() ? null : description,
+            posterPath.isEmpty() ? null : posterPath
+        );
         
-        if (added) {
+        // Save movie to database
+        if (movie.save()) {
             JOptionPane.showMessageDialog(this,
                 "Movie added successfully!",
                 "Success",

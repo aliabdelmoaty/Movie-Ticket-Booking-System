@@ -2,6 +2,9 @@ package gui;
 
 import javax.swing.*;
 import java.awt.*;
+import proxy.MovieProxy;
+import core.BookingSystem;
+import model.User;
 
 public class MovieDetailsFrame extends JFrame {
     private BookingFrame.Movie movie;
@@ -14,6 +17,28 @@ public class MovieDetailsFrame extends JFrame {
     public MovieDetailsFrame(BookingFrame.Movie movie, int movieId) {
         this.movie = movie;
         this.movieId = movieId;
+        
+        // Use Proxy Pattern to check age restrictions
+        BookingSystem system = BookingSystem.getInstance();
+        User currentUser = system.getCurrentUser();
+        int userAge = 18; // Default age, can be retrieved from user profile
+        
+        // Create proxy to check access
+        model.Movie realMovie = new model.Movie();
+        realMovie.setTitle(movie.getTitle());
+        realMovie.setRating(movie.getRating());
+        realMovie.setGenre(movie.getGenre());
+        
+        MovieProxy proxy = new MovieProxy(realMovie, currentUser, userAge);
+        
+        // Check if user can view this movie
+        if (!proxy.canView()) {
+            JOptionPane.showMessageDialog(null,
+                "Age restriction: You must be older to view this movie.\nRating: " + movie.getRating(),
+                "Access Denied",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         
         setTitle("Movie Details - " + movie.getTitle());
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);

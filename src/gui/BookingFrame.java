@@ -6,6 +6,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import core.BookingSystem;
+import prototype.MoviePrototype;
 
 public class BookingFrame extends JFrame {
     private JTextField searchField;
@@ -243,11 +244,86 @@ public class BookingFrame extends JFrame {
     private void openAddMovieDialog() {
         AddMovieDialog dialog = new AddMovieDialog(this);
         dialog.setVisible(true);
-        
+
         // Refresh movies list after dialog closes
         if (dialog.isMovieAdded()) {
             loadMovies();
             refreshMoviesDisplay();
+        }
+    }
+    
+    // Prototype Pattern - Clone selected movie
+    private void cloneSelectedMovie() {
+        if (movies.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "No movies available to clone!",
+                "Clone Movie",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Show list of movies to clone
+        String[] movieTitles = new String[movies.size()];
+        for (int i = 0; i < movies.size(); i++) {
+            movieTitles[i] = movies.get(i).getTitle();
+        }
+        
+        String selected = (String) JOptionPane.showInputDialog(
+            this,
+            "Select movie to clone (Prototype Pattern):",
+            "Clone Movie",
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            movieTitles,
+            movieTitles[0]
+        );
+        
+        if (selected != null) {
+            // Find the selected movie
+            model.Movie selectedMovie = null;
+            for (model.Movie m : movies) {
+                if (m.getTitle().equals(selected)) {
+                    selectedMovie = m;
+                    break;
+                }
+            }
+            
+            if (selectedMovie != null) {
+                // Use Prototype Pattern to clone
+                MoviePrototype prototype = new MoviePrototype(selectedMovie);
+                
+                // Ask for sequel name
+                String sequelName = JOptionPane.showInputDialog(
+                    this,
+                    "Enter sequel name (e.g., 'Part 2', 'II', 'Reloaded'):",
+                    "Clone Movie",
+                    JOptionPane.QUESTION_MESSAGE
+                );
+                
+                if (sequelName != null && !sequelName.trim().isEmpty()) {
+                    MoviePrototype cloned = prototype.cloneAsSequel(sequelName.trim());
+                    model.Movie newMovie = cloned.getMovie();
+                    
+                    // Save to database
+                    if (newMovie.save()) {
+                        JOptionPane.showMessageDialog(this,
+                            "Movie cloned successfully!\n" +
+                            "Original: " + selectedMovie.getTitle() + "\n" +
+                            "Clone: " + newMovie.getTitle(),
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                        
+                        // Refresh
+                        loadMovies();
+                        refreshMoviesDisplay();
+                    } else {
+                        JOptionPane.showMessageDialog(this,
+                            "Failed to save cloned movie!",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }
         }
     }
     

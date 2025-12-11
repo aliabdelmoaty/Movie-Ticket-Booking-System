@@ -6,6 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 import core.BookingSystem;
 import model.Booking;
+import builder.BookingBuilder;
+import adapter.PaymentProcessor;
+import adapter.PaymentAdapterFactory;
+import adapter.PaymentAdapterFactory.PaymentMethod;
 
 public class BookTicket extends JFrame {
     private BookingFrame.Movie movie;
@@ -17,6 +21,11 @@ public class BookTicket extends JFrame {
     private static final double SEAT_PRICE = 15.00;
     private static final int ROWS = 8;
     private static final int COLS = 12;
+    
+    // Decorator Pattern - Ticket extras
+    private JCheckBox popcornCheckBox;
+    private JCheckBox glasses3DCheckBox;
+    private JCheckBox premiumSeatCheckBox;
     
     public BookTicket(BookingFrame.Movie movie) {
         this(movie, 1); // Default movie ID
@@ -233,6 +242,43 @@ public class BookTicket extends JFrame {
         infoPanel.add(Box.createVerticalStrut(5));
         infoPanel.add(totalPriceLabel);
         
+        // Decorator Pattern - Add ticket extras
+        JPanel extrasPanel = new JPanel();
+        extrasPanel.setLayout(new BoxLayout(extrasPanel, BoxLayout.Y_AXIS));
+        extrasPanel.setBackground(new Color(28, 31, 39));
+        extrasPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(new Color(59, 67, 84)),
+            "Ticket Extras (Decorator Pattern)",
+            0, 0,
+            new Font("Spline Sans", Font.BOLD, 12),
+            new Color(150, 155, 170)
+        ));
+        
+        popcornCheckBox = new JCheckBox("🍿 Popcorn & Drink (+$7.99)");
+        popcornCheckBox.setFont(new Font("Spline Sans", Font.PLAIN, 14));
+        popcornCheckBox.setForeground(Color.WHITE);
+        popcornCheckBox.setBackground(new Color(28, 31, 39));
+        popcornCheckBox.addActionListener(e -> updateTotalPrice());
+        
+        glasses3DCheckBox = new JCheckBox("🕶️ 3D Glasses (+$3.50)");
+        glasses3DCheckBox.setFont(new Font("Spline Sans", Font.PLAIN, 14));
+        glasses3DCheckBox.setForeground(Color.WHITE);
+        glasses3DCheckBox.setBackground(new Color(28, 31, 39));
+        glasses3DCheckBox.addActionListener(e -> updateTotalPrice());
+        
+        premiumSeatCheckBox = new JCheckBox("💺 Premium Seat Upgrade (+$5.00)");
+        premiumSeatCheckBox.setFont(new Font("Spline Sans", Font.PLAIN, 14));
+        premiumSeatCheckBox.setForeground(Color.WHITE);
+        premiumSeatCheckBox.setBackground(new Color(28, 31, 39));
+        premiumSeatCheckBox.addActionListener(e -> updateTotalPrice());
+        
+        extrasPanel.add(popcornCheckBox);
+        extrasPanel.add(glasses3DCheckBox);
+        extrasPanel.add(premiumSeatCheckBox);
+        
+        infoPanel.add(Box.createVerticalStrut(10));
+        infoPanel.add(extrasPanel);
+        
         // Right side - Confirm button
         JButton confirmButton = new JButton("Confirm Booking");
         confirmButton.setFont(new Font("Spline Sans", Font.BOLD, 16));
@@ -271,10 +317,26 @@ public class BookTicket extends JFrame {
                 }
             }
             selectedSeatsLabel.setText(seatsText.toString());
-            
-            double total = selectedSeats.size() * SEAT_PRICE;
-            totalPriceLabel.setText(String.format("Total: $%.2f", total));
+            updateTotalPrice();
         }
+    }
+    
+    // Update price with decorator extras
+    private void updateTotalPrice() {
+        double total = selectedSeats.size() * SEAT_PRICE;
+        
+        // Add decorator extras
+        if (popcornCheckBox != null && popcornCheckBox.isSelected()) {
+            total += 7.99;
+        }
+        if (glasses3DCheckBox != null && glasses3DCheckBox.isSelected()) {
+            total += 3.50;
+        }
+        if (premiumSeatCheckBox != null && premiumSeatCheckBox.isSelected()) {
+            total += 5.00 * selectedSeats.size(); // Per seat
+        }
+        
+        totalPriceLabel.setText(String.format("Total: $%.2f", total));
     }
     
     private void confirmBooking() {
@@ -302,35 +364,106 @@ public class BookTicket extends JFrame {
             return;
         }
         
-        // Build seats string
-        StringBuilder seatsBuilder = new StringBuilder();
-        for (int i = 0; i < selectedSeats.size(); i++) {
-            seatsBuilder.append(selectedSeats.get(i).getSeatLabel());
-            if (i < selectedSeats.size() - 1) {
-                seatsBuilder.append(", ");
-            }
-        }
-        String seats = seatsBuilder.toString();
-        double totalPrice = selectedSeats.size() * SEAT_PRICE;
+        // Use Builder Pattern to create booking
+        BookingBuilder builder = BookingBuilder.newBooking()
+            .setUserId(bookingSystem.getCurrentUser().getId())
+            .setMovieId(movieId)
+            .setBasePrice(SEAT_PRICE);
         
-        // Save booking to database
-        if (bookingSystem.createBooking(movieId, seats, totalPrice)) {
-            StringBuilder message = new StringBuilder();
-            message.append("Movie: ").append(movie.getTitle()).append("\n");
-            message.append("Seats: ").append(seats).append("\n");
-            message.append(String.format("Total: $%.2f", totalPrice));
-            message.append("\n\nBooking confirmed!");
-            
-            JOptionPane.showMessageDialog(this,
-                message.toString(),
-                "Booking Successful",
-                JOptionPane.INFORMATION_MESSAGE);
-            
-            dispose();
+        // Add all selected seats
+        for (SeatButton seat : selectedSeats) {
+            builder.addSeat(seat.getSeatLabel());
+        }
+        
+        // Build the booking
+        Booking booking = builder.build();
+        
+        // Calculate final price with decorators
+        double finalPrice = booking.getTotalPrice();
+        if (popcornCheckBox.isSelected()) {
+            finalPrice += 7.99;
+        }
+        if (glasses3DCheckBox.isSelected()) {
+            finalPrice += 3.50;
+        }
+        if (premiumSeatCheckBox.isSelected()) {
+            finalPrice += 5.00 * selectedSeats.size();
+        }
+        
+        // Use Adapter Pattern for payment
+        String[] paymentOptions = {"Credit Card", "PayPal", "Bank Transfer"};
+        int paymentChoice = JOptionPane.showOptionDialog(this,
+            String.format("Total Amount: $%.2f\nSelect Payment Method:", finalPrice),
+            "Payment Method (Adapter Pattern)",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            paymentOptions,
+            paymentOptions[0]);
+        
+        if (paymentChoice == -1) {
+            return; // User cancelled
+        }
+        
+        // Select payment method
+        PaymentMethod method;
+        switch (paymentChoice) {
+            case 0:
+                method = PaymentMethod.CREDIT_CARD;
+                break;
+            case 1:
+                method = PaymentMethod.PAYPAL;
+                break;
+            case 2:
+                method = PaymentMethod.BANK_TRANSFER;
+                break;
+            default:
+                method = PaymentMethod.CREDIT_CARD;
+        }
+        
+        // Process payment using adapter
+        PaymentProcessor processor = PaymentAdapterFactory.createPaymentProcessor(method);
+        String customerInfo = bookingSystem.getCurrentUser().getEmail();
+        
+        if (processor.processPayment(finalPrice, customerInfo)) {
+            // Payment successful, save booking
+            if (booking.save()) {
+                StringBuilder message = new StringBuilder();
+                message.append("Movie: ").append(movie.getTitle()).append("\n");
+                message.append("Seats: ").append(booking.getSeats()).append("\n");
+                
+                // Show selected extras
+                if (popcornCheckBox.isSelected()) {
+                    message.append("Extra: 🍿 Popcorn & Drink\n");
+                }
+                if (glasses3DCheckBox.isSelected()) {
+                    message.append("Extra: 🕶️ 3D Glasses\n");
+                }
+                if (premiumSeatCheckBox.isSelected()) {
+                    message.append("Extra: 💺 Premium Seats\n");
+                }
+                
+                message.append(String.format("\nTotal: $%.2f", finalPrice));
+                message.append("\n\nPayment: ").append(processor.getPaymentStatus());
+                message.append("\nTransaction ID: ").append(processor.getTransactionId());
+                message.append("\n\nBooking confirmed!");
+                
+                JOptionPane.showMessageDialog(this,
+                    message.toString(),
+                    "Booking Successful",
+                    JOptionPane.INFORMATION_MESSAGE);
+                
+                dispose();
+            } else {
+                JOptionPane.showMessageDialog(this,
+                    "Failed to save booking. Please contact support.",
+                    "Booking Failed",
+                    JOptionPane.ERROR_MESSAGE);
+            }
         } else {
             JOptionPane.showMessageDialog(this,
-                "Failed to create booking. Please try again.",
-                "Booking Failed",
+                "Payment failed. Please try again.",
+                "Payment Failed",
                 JOptionPane.ERROR_MESSAGE);
         }
     }

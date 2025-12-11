@@ -5,16 +5,24 @@ import model.Movie;
 import model.Booking;
 import database.DatabaseManager;
 
+/**
+ * Singleton Pattern: BookingSystem
+ * Central system for managing all ticket bookings
+ * Ensures only one instance manages all bookings
+ */
 public class BookingSystem {
     private static BookingSystem instance;
     private User currentUser;
+    private SessionManager sessionManager;
     
     private BookingSystem() {
         // Initialize database
         DatabaseManager.getInstance();
+        // Initialize session manager
+        sessionManager = SessionManager.getInstance();
     }
     
-    public static BookingSystem getInstance() {
+    public static synchronized BookingSystem getInstance() {
         if (instance == null) {
             instance = new BookingSystem();
         }
@@ -40,6 +48,7 @@ public class BookingSystem {
         User user = User.findByEmailAndPassword(email, password);
         if (user != null) {
             currentUser = user;
+            sessionManager.setCurrentUser(user);
             return true;
         }
         return false;
@@ -47,6 +56,7 @@ public class BookingSystem {
     
     public void logout() {
         currentUser = null;
+        sessionManager.logout();
     }
     
     public User getCurrentUser() {
@@ -82,7 +92,17 @@ public class BookingSystem {
         }
         
         Booking booking = new Booking(currentUser.getId(), movieId, seats, totalPrice);
-        return booking.save();
+        boolean success = booking.save();
+        
+        if (success) {
+            sessionManager.addActiveBooking(movieId, "Created");
+        }
+        
+        return success;
+    }
+    
+    public SessionManager getSessionManager() {
+        return sessionManager;
     }
     
     public java.util.List<Booking> getUserBookings() {
