@@ -101,10 +101,8 @@ public class MovieDetailsFrame extends JFrame {
         bookButton.setPreferredSize(new Dimension(150, 45));
         bookButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         bookButton.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, 
-                "Booking system will be implemented soon!\nMovie: " + movie.getTitle(),
-                "Booking",
-                JOptionPane.INFORMATION_MESSAGE);
+            BookTicket bookTicketFrame = new BookTicket(movie);
+            bookTicketFrame.setVisible(true);
         });
         
         JButton backButton = new JButton("Back");
