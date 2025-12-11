@@ -6,70 +6,408 @@
 
 ## 1️⃣ Singleton Pattern (نمط الكائن الوحيد)
 
-### 📂 الملفات:
-- `src/core/BookingSystem.java`
-- `src/database/DatabaseManager.java`
-- `src/core/SessionManager.java`
+### 📖 الشرح النظري:
+Singleton Pattern هو نمط تصميم يضمن أن الكلاس له نسخة واحدة فقط (instance) في التطبيق بأكمله، ويوفر نقطة وصول عامة (global access point) لهذه النسخة.
 
-### 📍 أين استخدم:
+### 🏗️ كيف يعمل:
+1. Constructor خاص (private) - لمنع إنشاء نسخ جديدة من خارج الكلاس
+2. متغير static خاص يحفظ النسخة الوحيدة
+3. دالة static عامة `getInstance()` - للحصول على النسخة الوحيدة
+
+### 📂 الملفات في المشروع:
+
+#### 1. BookingSystem.java
 ```java
-// في جميع أنحاء التطبيق
+public class BookingSystem {
+    private static BookingSystem instance;  // النسخة الوحيدة
+    
+    private BookingSystem() {  // Constructor خاص
+        DatabaseManager.getInstance();
+        sessionManager = SessionManager.getInstance();
+    }
+    
+    public static synchronized BookingSystem getInstance() {
+        if (instance == null) {  // lazy initialization
+            instance = new BookingSystem();
+        }
+        return instance;
+    }
+}
+```
+
+#### 2. DatabaseManager.java
+```java
+public class DatabaseManager {
+    private static DatabaseManager instance;
+    private Connection connection;  // اتصال واحد بالـ database
+    
+    private DatabaseManager() {
+        connection = DriverManager.getConnection(DB_URL);
+        createTables();
+    }
+    
+    public static synchronized DatabaseManager getInstance() {
+        if (instance == null) {
+            instance = new DatabaseManager();
+        }
+        return instance;
+    }
+}
+```
+
+#### 3. SessionManager.java
+```java
+public class SessionManager {
+    private static SessionManager instance;
+    private User currentUser;  // المستخدم الحالي
+    private Map<Integer, String> activeBookings;  // الحجوزات النشطة
+    
+    private SessionManager() {
+        this.activeBookings = new HashMap<>();
+    }
+    
+    public static SessionManager getInstance() {
+        if (instance == null) {
+            instance = new SessionManager();
+        }
+        return instance;
+    }
+}
+```
+
+### 📍 أين استخدم في الكود:
+
+#### في جميع GUI Files:
+```java
+// في BookingFrame.java
 BookingSystem system = BookingSystem.getInstance();
-DatabaseManager db = DatabaseManager.getInstance();
-SessionManager session = SessionManager.getInstance();
+List<Movie> movies = system.getAllMovies();
+
+// في LoginFrame.java
+BookingSystem system = BookingSystem.getInstance();
+boolean success = system.login(email, password);
+
+// في RegisterFrame.java
+BookingSystem system = BookingSystem.getInstance();
+boolean registered = system.register(name, email, username, password);
+
+// في BookTicket.java
+BookingSystem bookingSystem = BookingSystem.getInstance();
+User user = bookingSystem.getCurrentUser();
 ```
 
 ### 🎯 ليه استخدمناه:
-1. **BookingSystem**: نحتاج نسخة واحدة فقط لإدارة جميع عمليات الحجز في النظام
-2. **DatabaseManager**: اتصال واحد فقط بقاعدة البيانات لتجنب مشاكل الاتصالات المتعددة
-3. **SessionManager**: نسخة واحدة لإدارة جلسات المستخدمين وحالة الحجوزات
 
-### ✨ الفائدة:
-- ضمان وجود نسخة واحدة فقط من الكلاسات المهمة
-- توفير نقطة وصول عامة (global access point)
-- التحكم في الموارد المشتركة
+#### 1. BookingSystem:
+- **المشكلة**: لو كل GUI file عمل instance جديد، هيبقى عندنا أنظمة حجز مختلفة!
+- **الحل**: Singleton يضمن أن الكل يتعامل مع نفس نظام الحجز
+- **الفائدة**: تنسيق مركزي لجميع عمليات الحجز، بيانات متسقة
+
+#### 2. DatabaseManager:
+- **المشكلة**: لو كل model class عمل connection جديد، هنستهلك موارد كثيرة وممكن نوصل لحد الـ connections
+- **الحل**: Singleton يوفر connection واحد يستخدمه الكل
+- **الفائدة**: 
+  - توفير الموارد (Resource Management)
+  - تجنب مشاكل الـ connection pool
+  - سهولة غلق الاتصال عند إنهاء التطبيق
+
+#### 3. SessionManager:
+- **المشكلة**: معلومات المستخدم الحالي لازم تكون متاحة في كل مكان
+- **الحل**: Singleton يحفظ session واحد للمستخدم
+- **الفائدة**: 
+  - تتبع المستخدم الحالي في كل الشاشات
+  - إدارة حالة الحجوزات النشطة
+  - Logout يمسح الـ session من مكان واحد
+
+### ✨ الفوائد العملية:
+
+1. **وحدة الحالة (State Consistency)**:
+   - لو user عمل login في LoginFrame، BookTicket يشوف نفس الـ user
+   - لو تم حجز seats، كل الـ screens تشوف نفس التحديث
+
+2. **توفير الذاكرة (Memory Efficiency)**:
+   - بدلاً من 100 instance، عندنا instance واحد
+   - الـ database connection واحد بدل من عشرات
+
+3. **سهولة الصيانة (Maintainability)**:
+   - لو عايز تعدل منطق الحجز، تعدل في مكان واحد
+   - كل التطبيق يستفيد من التعديل
+
+### 🔒 Thread Safety:
+استخدمنا `synchronized` keyword في `getInstance()` لضمان أن في حالة multi-threading، يتم إنشاء instance واحد فقط.
+
+### 📊 مثال عملي:
+```java
+// في أي مكان في التطبيق
+BookingSystem sys1 = BookingSystem.getInstance();
+BookingSystem sys2 = BookingSystem.getInstance();
+
+System.out.println(sys1 == sys2);  // true - نفس الـ instance!
+```
 
 ---
 
 ## 2️⃣ Factory Pattern (نمط المصنع)
 
-### 📂 الملفات:
-- `src/factory/MovieFactory.java`
-- `src/factory/TheaterFactory.java`
+### 📖 الشرح النظري:
+Factory Pattern هو نمط تصميم يوفر واجهة (interface) لإنشاء كائنات دون تحديد الكلاس الدقيق للكائن المُنشأ. يترك القرار للـ Factory حسب المعطيات.
 
-### 📍 أين استخدم:
+### 🏗️ كيف يعمل:
+1. **Factory Class**: كلاس فيه دالة static تستقبل parameters
+2. **Decision Logic**: منطق اتخاذ القرار حسب الـ type المطلوب
+3. **Object Creation**: إنشاء الكائن المناسب وإرجاعه
+4. **Default Configuration**: تطبيق إعدادات افتراضية لكل نوع
 
-#### ✅ MovieFactory - في AddMovieDialog.java (السطر 235):
+### 📂 الملفات في المشروع:
+
+#### 1. MovieFactory.java
 ```java
-// استخدام حقيقي في الكود!
-MovieType movieType = MovieFactory.getMovieType(genre);
-Movie movie = MovieFactory.createMovie(
-    movieType,
-    title,
-    duration,
-    rating,
-    description.isEmpty() ? null : description,
-    posterPath.isEmpty() ? null : posterPath
-);
+public class MovieFactory {
+    
+    public enum MovieType {
+        ACTION, COMEDY, DRAMA, HORROR, SCIFI, ROMANCE, THRILLER
+    }
+    
+    // الدالة الأساسية للـ Factory
+    public static Movie createMovie(MovieType type, String title, 
+                                     String duration, String rating, 
+                                     String description, String posterPath) {
+        Movie movie = new Movie();
+        movie.setTitle(title);
+        movie.setDuration(duration);
+        movie.setRating(rating);
+        movie.setDescription(description);
+        movie.setPosterPath(posterPath);
+        
+        // هنا السحر! كل نوع له إعدادات خاصة
+        switch (type) {
+            case ACTION:
+                movie.setGenre("Action");
+                if (description == null || description.isEmpty()) {
+                    movie.setDescription("An action-packed thriller with intense sequences and stunts.");
+                }
+                break;
+                
+            case COMEDY:
+                movie.setGenre("Comedy");
+                if (description == null || description.isEmpty()) {
+                    movie.setDescription("A hilarious comedy that will make you laugh out loud.");
+                }
+                break;
+                
+            case HORROR:
+                movie.setGenre("Horror");
+                if (description == null || description.isEmpty()) {
+                    movie.setDescription("A terrifying horror experience that will keep you on the edge of your seat.");
+                }
+                break;
+            // ... باقي الأنواع
+        }
+        
+        return movie;
+    }
+    
+    // دالة مساعدة لتحويل String إلى MovieType
+    public static MovieType getMovieType(String genre) {
+        switch (genre.toUpperCase()) {
+            case "ACTION": return MovieType.ACTION;
+            case "COMEDY": return MovieType.COMEDY;
+            case "DRAMA": return MovieType.DRAMA;
+            // ... الخ
+            default: return MovieType.DRAMA;
+        }
+    }
+}
 ```
 
-**الواجهة**: عند إضافة فيلم جديد، يختار المستخدم النوع من ComboBox وFactory يقوم بإنشاء الفيلم تلقائياً!
-
-#### TheaterFactory:
+#### 2. TheaterFactory.java
 ```java
-// لإنشاء صالات عرض بأنواع مختلفة
-Theater imaxTheater = TheaterFactory.createTheater(TheaterType.IMAX, 200);
-Theater vipTheater = TheaterFactory.createTheater(TheaterType.VIP, 50);
+public class TheaterFactory {
+    
+    public enum TheaterType {
+        STANDARD, IMAX, VIP, DOLBY_ATMOS, FOUR_DX
+    }
+    
+    public static Theater createTheater(TheaterType type, int capacity) {
+        switch (type) {
+            case STANDARD:
+                return new StandardTheater(capacity);
+            case IMAX:
+                return new IMAXTheater(capacity);
+            case VIP:
+                return new VIPTheater(capacity);
+            // ... باقي الأنواع
+        }
+    }
+    
+    // كل Theater له مواصفات مختلفة
+    static class IMAXTheater implements Theater {
+        public String getName() { return "IMAX Theater"; }
+        public double getPriceMultiplier() { return 1.8; }  // سعر أعلى
+        public String[] getFeatures() {
+            return new String[]{"Giant IMAX Screen", "12-Channel Sound", 
+                              "Laser Projection", "Premium Seating"};
+        }
+    }
+    
+    static class VIPTheater implements Theater {
+        public String getName() { return "VIP Luxury Theater"; }
+        public double getPriceMultiplier() { return 2.5; }  // أغلى سعر
+        public String[] getFeatures() {
+            return new String[]{"Reclining Leather Seats", "Waiter Service", 
+                              "Premium Sound", "Extra Legroom"};
+        }
+    }
+}
+```
+
+### 📍 أين استخدم في الكود:
+
+#### ✅ في AddMovieDialog.java (السطر 50-65):
+
+**الواجهة (UI)**:
+```java
+// ComboBox لاختيار نوع الفيلم
+String[] movieTypes = {"ACTION", "COMEDY", "DRAMA", "HORROR", 
+                      "SCIFI", "ROMANCE", "THRILLER"};
+JComboBox<String> genreCombo = new JComboBox<>(movieTypes);
+```
+
+**استخدام الـ Factory (السطر 235)**:
+```java
+private void addMovie() {
+    String genre = genreField.getText().trim();  // من الـ ComboBox
+    
+    // استخدام Factory Pattern
+    MovieType movieType = MovieFactory.getMovieType(genre);
+    Movie movie = MovieFactory.createMovie(
+        movieType,
+        title,
+        duration,
+        rating,
+        description.isEmpty() ? null : description,
+        posterPath.isEmpty() ? null : posterPath
+    );
+    
+    // حفظ في الـ database
+    movie.save();
+}
 ```
 
 ### 🎯 ليه استخدمناه:
-1. **MovieFactory**: كل نوع فيلم (Action, Comedy, Drama, etc.) له خصائص افتراضية مختلفة
-2. **TheaterFactory**: كل صالة (IMAX, VIP, Standard) لها مواصفات وأسعار مختلفة
 
-### ✨ الفائدة:
-- فصل منطق إنشاء الكائنات عن الكود الأساسي
-- سهولة إضافة أنواع جديدة من الأفلام أو الصالات
-- تطبيق خصائص افتراضية لكل نوع
+#### 1. MovieFactory:
+
+**المشكلة بدون Factory**:
+```java
+// كود سيء - تكرار وصعب الصيانة
+if (genre.equals("Action")) {
+    movie.setGenre("Action");
+    movie.setDescription("An action-packed thriller...");
+} else if (genre.equals("Comedy")) {
+    movie.setGenre("Comedy");
+    movie.setDescription("A hilarious comedy...");
+} else if (genre.equals("Horror")) {
+    movie.setGenre("Horror");
+    movie.setDescription("A terrifying horror...");
+}
+// ... 7 أنواع = كود طويل ومعقد!
+```
+
+**الحل مع Factory**:
+```java
+// كود نظيف ومنظم
+Movie movie = MovieFactory.createMovie(movieType, title, duration, rating, description, posterPath);
+// Factory يتعامل مع كل التفاصيل!
+```
+
+**الفوائد**:
+1. **Default Descriptions**: لو المستخدم ما كتب description، Factory يضع واحد مناسب تلقائياً
+2. **Consistency**: كل أفلام الـ Action لها نفس النمط من الوصف
+3. **Extensibility**: لإضافة نوع جديد، فقط أضف case واحد في Factory
+
+#### 2. TheaterFactory:
+
+**السيناريو**: نظام التسعير مختلف حسب نوع الصالة
+- **Standard**: سعر عادي (1.0x)
+- **IMAX**: سعر أعلى بـ 80% (1.8x)
+- **VIP**: سعر أعلى بـ 150% (2.5x)
+
+```java
+// عند حساب السعر
+Theater theater = TheaterFactory.createTheater(TheaterType.IMAX, 200);
+double basePrice = 10.0;
+double finalPrice = basePrice * theater.getPriceMultiplier();  // 10 * 1.8 = 18
+```
+
+### ✨ الفوائد العملية:
+
+1. **Encapsulation (التغليف)**:
+   - منطق إنشاء الأفلام معزول في Factory
+   - AddMovieDialog لا يعرف تفاصيل كل نوع
+
+2. **Maintainability (سهولة الصيانة)**:
+   - لتغيير description نوع معين، تعدل في مكان واحد
+   - كل الأفلام الجديدة تستفيد من التعديل
+
+3. **Scalability (قابلية التوسع)**:
+   - لإضافة نوع "DOCUMENTARY" جديد:
+     ```java
+     case DOCUMENTARY:
+         movie.setGenre("Documentary");
+         movie.setDescription("An informative documentary...");
+         break;
+     ```
+   - فقط 4 أسطر في Factory!
+
+4. **User Experience**:
+   - المستخدم يختار النوع من قائمة
+   - يحصل على وصف افتراضي جيد تلقائياً
+   - ما يحتاج يكتب كل شيء
+
+### 📊 مثال عملي - سيناريو كامل:
+
+```java
+// المستخدم اختار "Horror" من ComboBox
+String selectedGenre = "HORROR";
+
+// Factory يحول النص لـ enum
+MovieType type = MovieFactory.getMovieType(selectedGenre);  // HORROR
+
+// Factory ينشئ فيلم رعب بمواصفات خاصة
+Movie horrorMovie = MovieFactory.createMovie(
+    type,
+    "The Conjuring",
+    "112 min",
+    "R",
+    null,  // لم يكتب وصف
+    "conjuring.jpg"
+);
+
+// النتيجة:
+// - Genre: "Horror"
+// - Description: "A terrifying horror experience that will keep you on the edge of your seat."
+// - كل شيء جاهز تلقائياً!
+```
+
+### 🎨 تجربة المستخدم في الواجهة:
+
+1. المستخدم يفتح "Add Movie"
+2. يختار "HORROR" من القائمة المنسدلة
+3. يكتب العنوان والمدة والتقييم
+4. **لا يكتب وصف** (مشغول أو كسلان 😅)
+5. يضغط "Add Movie"
+6. Factory يضيف وصف احترافي تلقائياً!
+7. الفيلم يُضاف بمواصفات كاملة ✅
+
+### 🔄 المقارنة:
+
+| بدون Factory | مع Factory |
+|--------------|-----------|
+| 50+ سطر في AddMovieDialog | 3 أسطر فقط |
+| منطق معقد ومكرر | منطق مركزي ومنظم |
+| صعب إضافة أنواع جديدة | سهل جداً |
+| احتمال أخطاء عالي | آمن ومضمون |
 
 ---
 
