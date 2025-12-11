@@ -4,9 +4,12 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import core.BookingSystem;
+import model.Booking;
 
 public class BookTicket extends JFrame {
     private BookingFrame.Movie movie;
+    private int movieId;
     private JPanel seatsPanel;
     private JLabel selectedSeatsLabel;
     private JLabel totalPriceLabel;
@@ -16,7 +19,12 @@ public class BookTicket extends JFrame {
     private static final int COLS = 12;
     
     public BookTicket(BookingFrame.Movie movie) {
+        this(movie, 1); // Default movie ID
+    }
+    
+    public BookTicket(BookingFrame.Movie movie, int movieId) {
         this.movie = movie;
+        this.movieId = movieId;
         this.selectedSeats = new ArrayList<>();
         
         setTitle("Book Ticket - " + movie.getTitle());
@@ -179,11 +187,14 @@ public class BookTicket extends JFrame {
         seatsGrid.setBackground(new Color(16, 22, 34));
         seatsGrid.setMaximumSize(new Dimension(800, 400));
         
-        // Generate seats with some randomly occupied
+        // Get occupied seats from database
+        List<String> occupiedSeats = Booking.getOccupiedSeats(movieId);
+        
+        // Generate seats with real occupied status from database
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLS; col++) {
                 String seatLabel = (char)('A' + row) + String.valueOf(col + 1);
-                boolean isOccupied = Math.random() < 0.2; // 20% occupied
+                boolean isOccupied = occupiedSeats.contains(seatLabel);
                 SeatButton seatButton = new SeatButton(seatLabel, isOccupied, this);
                 seatsGrid.add(seatButton);
             }
@@ -275,24 +286,52 @@ public class BookTicket extends JFrame {
             return;
         }
         
-        StringBuilder message = new StringBuilder();
-        message.append("Movie: ").append(movie.getTitle()).append("\n");
-        message.append("Seats: ");
+        BookingSystem bookingSystem = BookingSystem.getInstance();
+        
+        // Check if user is logged in
+        if (!bookingSystem.isLoggedIn()) {
+            int choice = JOptionPane.showConfirmDialog(this,
+                "You need to login to book tickets. Do you want to login now?",
+                "Login Required",
+                JOptionPane.YES_NO_OPTION);
+            
+            if (choice == JOptionPane.YES_OPTION) {
+                dispose();
+                new LoginFrame().setVisible(true);
+            }
+            return;
+        }
+        
+        // Build seats string
+        StringBuilder seatsBuilder = new StringBuilder();
         for (int i = 0; i < selectedSeats.size(); i++) {
-            message.append(selectedSeats.get(i).getSeatLabel());
+            seatsBuilder.append(selectedSeats.get(i).getSeatLabel());
             if (i < selectedSeats.size() - 1) {
-                message.append(", ");
+                seatsBuilder.append(", ");
             }
         }
-        message.append("\n");
-        message.append(String.format("Total: $%.2f", selectedSeats.size() * SEAT_PRICE));
-        message.append("\n\nBooking confirmed!");
+        String seats = seatsBuilder.toString();
+        double totalPrice = selectedSeats.size() * SEAT_PRICE;
         
-        JOptionPane.showMessageDialog(this,
-            message.toString(),
-            "Booking Successful",
-            JOptionPane.INFORMATION_MESSAGE);
-        
-        dispose();
+        // Save booking to database
+        if (bookingSystem.createBooking(movieId, seats, totalPrice)) {
+            StringBuilder message = new StringBuilder();
+            message.append("Movie: ").append(movie.getTitle()).append("\n");
+            message.append("Seats: ").append(seats).append("\n");
+            message.append(String.format("Total: $%.2f", totalPrice));
+            message.append("\n\nBooking confirmed!");
+            
+            JOptionPane.showMessageDialog(this,
+                message.toString(),
+                "Booking Successful",
+                JOptionPane.INFORMATION_MESSAGE);
+            
+            dispose();
+        } else {
+            JOptionPane.showMessageDialog(this,
+                "Failed to create booking. Please try again.",
+                "Booking Failed",
+                JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

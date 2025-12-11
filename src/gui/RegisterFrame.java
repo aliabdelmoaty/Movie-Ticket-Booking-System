@@ -3,6 +3,7 @@ package gui;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import core.BookingSystem;
 
 public class RegisterFrame extends JFrame {
     private JTextField nameField;
@@ -149,10 +150,50 @@ public class RegisterFrame extends JFrame {
     }
 
     private void handleRegister() {
-        String name = nameField.getText();
-        String email = emailField.getText();
-        String username = usernameField.getText();
+        String name = nameField.getText().trim();
+        String email = emailField.getText().trim();
+        String username = usernameField.getText().trim();
         String password = new String(passwordField.getPassword());
-        JOptionPane.showMessageDialog(this, "Registered as " + name + " " + email + " " + username + " " + password);
+        
+        // Validation
+        if (name.isEmpty() || email.isEmpty() || username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "Please fill in all fields!",
+                "Validation Error",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        if (!email.contains("@")) {
+            JOptionPane.showMessageDialog(this,
+                "Please enter a valid email address!",
+                "Validation Error",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        if (password.length() < 6) {
+            JOptionPane.showMessageDialog(this,
+                "Password must be at least 6 characters long!",
+                "Validation Error",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        BookingSystem bookingSystem = BookingSystem.getInstance();
+        
+        if (bookingSystem.register(name, email, username, password)) {
+            JOptionPane.showMessageDialog(this,
+                "Registration successful! Please login to continue.",
+                "Success",
+                JOptionPane.INFORMATION_MESSAGE);
+            dispose();
+            new LoginFrame().setVisible(true);
+        } else {
+            JOptionPane.showMessageDialog(this,
+                "Registration failed! Email or username already exists.",
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

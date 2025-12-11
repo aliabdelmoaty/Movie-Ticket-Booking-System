@@ -5,9 +5,15 @@ import java.awt.*;
 
 public class MovieDetailsFrame extends JFrame {
     private BookingFrame.Movie movie;
+    private int movieId;
     
     public MovieDetailsFrame(BookingFrame.Movie movie) {
+        this(movie, 1); // Default movie ID
+    }
+    
+    public MovieDetailsFrame(BookingFrame.Movie movie, int movieId) {
         this.movie = movie;
+        this.movieId = movieId;
         
         setTitle("Movie Details - " + movie.getTitle());
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -101,7 +107,7 @@ public class MovieDetailsFrame extends JFrame {
         bookButton.setPreferredSize(new Dimension(150, 45));
         bookButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         bookButton.addActionListener(e -> {
-            BookTicket bookTicketFrame = new BookTicket(movie);
+            BookTicket bookTicketFrame = new BookTicket(movie, movieId);
             bookTicketFrame.setVisible(true);
         });
         

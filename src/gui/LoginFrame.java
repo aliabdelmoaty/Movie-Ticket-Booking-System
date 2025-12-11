@@ -2,6 +2,7 @@ package gui;
 
 import javax.swing.*;
 import java.awt.*;
+import core.BookingSystem;
 
 public class LoginFrame extends JFrame {
 
@@ -103,7 +104,7 @@ public class LoginFrame extends JFrame {
         goRegister.setFocusPainted(false);
         goRegister.addActionListener(e -> {
             dispose();
-            new BookingFrame().setVisible(true);
+            new RegisterFrame().setVisible(true);
         });
         c.gridy++;
         form.add(goRegister, c);
@@ -115,8 +116,32 @@ public class LoginFrame extends JFrame {
     }
 
     private void handleLogin() {
-        String email = emailField.getText();
-        JOptionPane.showMessageDialog(this, "Logged in as " + email);
+        String email = emailField.getText().trim();
+        String password = new String(passwordField.getPassword());
+        
+        if (email.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "Please fill in all fields!",
+                "Validation Error",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        BookingSystem bookingSystem = BookingSystem.getInstance();
+        
+        if (bookingSystem.login(email, password)) {
+            JOptionPane.showMessageDialog(this,
+                "Welcome back, " + bookingSystem.getCurrentUser().getName() + "!",
+                "Login Successful",
+                JOptionPane.INFORMATION_MESSAGE);
+            dispose();
+            new BookingFrame().setVisible(true);
+        } else {
+            JOptionPane.showMessageDialog(this,
+                "Invalid email or password!",
+                "Login Failed",
+                JOptionPane.ERROR_MESSAGE);
+        }
     }
 
    
