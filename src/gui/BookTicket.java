@@ -10,6 +10,10 @@ import builder.BookingBuilder;
 import adapter.PaymentProcessor;
 import adapter.PaymentAdapterFactory;
 import adapter.PaymentAdapterFactory.PaymentMethod;
+import factory.TheaterFactory;
+import factory.TheaterFactory.TheaterType;
+import factory.TheaterFactory.Theater;
+import decorator.TicketPriceCalculator;
 
 public class BookTicket extends JFrame {
     private BookingFrame.Movie movie;
@@ -26,6 +30,11 @@ public class BookTicket extends JFrame {
     private JCheckBox popcornCheckBox;
     private JCheckBox glasses3DCheckBox;
     private JCheckBox premiumSeatCheckBox;
+    
+    // Factory Pattern - Theater selection
+    private JComboBox<String> theaterTypeCombo;
+    private Theater selectedTheater;
+    private TheaterType currentTheaterType;
     
     public BookTicket(BookingFrame.Movie movie) {
         this(movie, 1); // Default movie ID
@@ -242,6 +251,83 @@ public class BookTicket extends JFrame {
         infoPanel.add(Box.createVerticalStrut(5));
         infoPanel.add(totalPriceLabel);
         
+        // Factory Pattern - Theater Type Selection
+        JPanel theaterPanel = new JPanel();
+        theaterPanel.setLayout(new BoxLayout(theaterPanel, BoxLayout.Y_AXIS));
+        theaterPanel.setBackground(new Color(28, 31, 39));
+        theaterPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(new Color(59, 67, 84)),
+            "Theater Type (Factory Pattern)",
+            0, 0,
+            new Font("Spline Sans", Font.BOLD, 12),
+            new Color(150, 155, 170)
+        ));
+        
+        String[] theaterTypes = {"STANDARD", "IMAX", "VIP", "DOLBY_ATMOS", "FOUR_DX"};
+        theaterTypeCombo = new JComboBox<>(theaterTypes);
+        theaterTypeCombo.setFont(new Font("Spline Sans", Font.PLAIN, 14));
+        theaterTypeCombo.setBackground(new Color(28, 31, 39));
+        theaterTypeCombo.setForeground(Color.WHITE);
+        theaterTypeCombo.setMaximumSize(new Dimension(300, 35));
+        theaterTypeCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        // Initialize default theater
+        currentTheaterType = TheaterType.STANDARD;
+        selectedTheater = TheaterFactory.createTheater(currentTheaterType, ROWS * COLS);
+        
+        theaterTypeCombo.addActionListener(e -> {
+            String selected = (String) theaterTypeCombo.getSelectedItem();
+            try {
+                currentTheaterType = TheaterType.valueOf(selected);
+                selectedTheater = TheaterFactory.createTheater(currentTheaterType, ROWS * COLS);
+                updateTotalPrice();
+                
+                // Show theater info
+                JLabel theaterInfoLabel = new JLabel(
+                    "<html><div style='width:250px'>" +
+                    "<b>" + selectedTheater.getName() + "</b><br/>" +
+                    selectedTheater.getDescription() + "<br/>" +
+                    "<small>Price Multiplier: " + String.format("%.1fx", selectedTheater.getPriceMultiplier()) + "</small>" +
+                    "</div></html>"
+                );
+                theaterInfoLabel.setFont(new Font("Spline Sans", Font.PLAIN, 11));
+                theaterInfoLabel.setForeground(new Color(150, 155, 170));
+                theaterInfoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                
+                // Remove old info label if exists
+                Component[] components = theaterPanel.getComponents();
+                for (Component comp : components) {
+                    if (comp instanceof JLabel && comp != theaterTypeCombo) {
+                        theaterPanel.remove(comp);
+                    }
+                }
+                theaterPanel.add(theaterInfoLabel);
+                theaterPanel.revalidate();
+                theaterPanel.repaint();
+            } catch (IllegalArgumentException ex) {
+                // Invalid theater type, keep default
+            }
+        });
+        
+        theaterPanel.add(theaterTypeCombo);
+        theaterPanel.add(Box.createVerticalStrut(5));
+        
+        // Initial theater info label
+        JLabel initialTheaterInfo = new JLabel(
+            "<html><div style='width:250px'>" +
+            "<b>" + selectedTheater.getName() + "</b><br/>" +
+            selectedTheater.getDescription() + "<br/>" +
+            "<small>Price Multiplier: " + String.format("%.1fx", selectedTheater.getPriceMultiplier()) + "</small>" +
+            "</div></html>"
+        );
+        initialTheaterInfo.setFont(new Font("Spline Sans", Font.PLAIN, 11));
+        initialTheaterInfo.setForeground(new Color(150, 155, 170));
+        initialTheaterInfo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        theaterPanel.add(initialTheaterInfo);
+        
+        infoPanel.add(Box.createVerticalStrut(10));
+        infoPanel.add(theaterPanel);
+        
         // Decorator Pattern - Add ticket extras
         JPanel extrasPanel = new JPanel();
         extrasPanel.setLayout(new BoxLayout(extrasPanel, BoxLayout.Y_AXIS));
@@ -321,20 +407,31 @@ public class BookTicket extends JFrame {
         }
     }
     
-    // Update price with decorator extras
+    // Update price with decorator extras and theater multiplier
+    // Uses Decorator Pattern via TicketPriceCalculator to dynamically add features to tickets
     private void updateTotalPrice() {
-        double total = selectedSeats.size() * SEAT_PRICE;
+        if (selectedSeats.isEmpty()) {
+            totalPriceLabel.setText("Total: $0.00");
+            return;
+        }
         
-        // Add decorator extras
-        if (popcornCheckBox != null && popcornCheckBox.isSelected()) {
-            total += 7.99;
-        }
-        if (glasses3DCheckBox != null && glasses3DCheckBox.isSelected()) {
-            total += 3.50;
-        }
-        if (premiumSeatCheckBox != null && premiumSeatCheckBox.isSelected()) {
-            total += 5.00 * selectedSeats.size(); // Per seat
-        }
+        // Base price with theater multiplier (Factory Pattern)
+        double theaterMultiplier = selectedTheater != null ? selectedTheater.getPriceMultiplier() : 1.0;
+        double basePricePerSeat = SEAT_PRICE * theaterMultiplier;
+        
+        // Use Decorator Pattern through TicketPriceCalculator
+        boolean hasPopcorn = popcornCheckBox != null && popcornCheckBox.isSelected();
+        boolean has3DGlasses = glasses3DCheckBox != null && glasses3DCheckBox.isSelected();
+        boolean hasPremiumSeat = premiumSeatCheckBox != null && premiumSeatCheckBox.isSelected();
+        
+        double total = TicketPriceCalculator.calculateTotalPrice(
+            movie.getTitle(),
+            basePricePerSeat,
+            selectedSeats.size(),
+            hasPopcorn,
+            has3DGlasses,
+            hasPremiumSeat
+        );
         
         totalPriceLabel.setText(String.format("Total: $%.2f", total));
     }
@@ -364,11 +461,16 @@ public class BookTicket extends JFrame {
             return;
         }
         
-        // Use Builder Pattern to create booking
+        // Use Builder Pattern to create booking with Theater Factory multiplier
         BookingBuilder builder = BookingBuilder.newBooking()
             .setUserId(bookingSystem.getCurrentUser().getId())
             .setMovieId(movieId)
             .setBasePrice(SEAT_PRICE);
+        
+        // Use Theater Factory Pattern - set theater type and multiplier
+        if (selectedTheater != null) {
+            builder.setTheaterType(selectedTheater.getName(), selectedTheater.getPriceMultiplier());
+        }
         
         // Add all selected seats
         for (SeatButton seat : selectedSeats) {

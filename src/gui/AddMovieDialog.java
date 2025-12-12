@@ -22,7 +22,7 @@ public class AddMovieDialog extends JDialog {
     
     public AddMovieDialog(Frame parent) {
         super(parent, "Add New Movie", true);
-        setSize(700, 700);
+        setSize(700, 800);
         setLocationRelativeTo(parent);
         setResizable(false);
         
@@ -59,9 +59,10 @@ public class AddMovieDialog extends JDialog {
         String[] movieTypes = {"ACTION", "COMEDY", "DRAMA", "HORROR", "SCIFI", "ROMANCE", "THRILLER"};
         JComboBox<String> genreCombo = new JComboBox<>(movieTypes);
         genreCombo.setFont(new Font("Spline Sans", Font.PLAIN, 14));
-        genreCombo.setMaximumSize(new Dimension(450, 45));
+        genreCombo.setMaximumSize(new Dimension(500, 45));
         genreCombo.setBackground(new Color(28, 31, 39));
         genreCombo.setForeground(Color.WHITE);
+        genreCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
         genreField = createTextField();
         genreField.setText("ACTION"); // Default
         genreCombo.addActionListener(e -> genreField.setText((String)genreCombo.getSelectedItem()));
@@ -103,29 +104,37 @@ public class AddMovieDialog extends JDialog {
         
         // Poster Path
         mainPanel.add(createLabel("Poster Image (Optional)"));
-        JPanel posterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        posterPanel.setBackground(new Color(16, 22, 34));
-        posterPanel.setMaximumSize(new Dimension(500, 40));
-        posterPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
-        posterPathField = createTextField();
+        // Path field
+        posterPathField = new JTextField();
+        posterPathField.setFont(new Font("Spline Sans", Font.PLAIN, 14));
+        posterPathField.setForeground(Color.WHITE);
+        posterPathField.setBackground(new Color(28, 31, 39));
+        posterPathField.setCaretColor(Color.WHITE);
         posterPathField.setEditable(false);
-        posterPathField.setPreferredSize(new Dimension(370, 40));
+        posterPathField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(59, 67, 84), 1, true),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+        ));
+        posterPathField.setPreferredSize(new Dimension(500, 40));
+        posterPathField.setMaximumSize(new Dimension(500, 40));
+        posterPathField.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(posterPathField);
+        mainPanel.add(Box.createVerticalStrut(10));
         
-        browseButton = new JButton("Browse");
+        // Browse button in separate row to ensure visibility
+        browseButton = new JButton("📁 Browse Image");
         browseButton.setFont(new Font("Spline Sans", Font.BOLD, 14));
-        browseButton.setBackground(new Color(59, 67, 84));
+        browseButton.setBackground(new Color(19, 91, 236));
         browseButton.setForeground(Color.WHITE);
         browseButton.setFocusPainted(false);
         browseButton.setBorderPainted(false);
-        browseButton.setPreferredSize(new Dimension(100, 40));
+        browseButton.setPreferredSize(new Dimension(200, 45));
+        browseButton.setMaximumSize(new Dimension(200, 45));
+        browseButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         browseButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         browseButton.addActionListener(e -> browsePosterImage());
-        
-        posterPanel.add(posterPathField);
-        posterPanel.add(Box.createHorizontalStrut(10));
-        posterPanel.add(browseButton);
-        mainPanel.add(posterPanel);
+        mainPanel.add(browseButton);
         mainPanel.add(Box.createVerticalStrut(30));
         
         // Buttons panel
@@ -249,6 +258,16 @@ public class AddMovieDialog extends JDialog {
             description.isEmpty() ? null : description,
             posterPath.isEmpty() ? null : posterPath
         );
+        
+        // Alternative: Builder Pattern can also be used
+        // Movie movie = MovieBuilder.newMovie()
+        //     .setTitle(title)
+        //     .setGenre(genre)
+        //     .setDuration(duration)
+        //     .setRating(rating)
+        //     .setDescription(description.isEmpty() ? null : description)
+        //     .setPosterPath(posterPath.isEmpty() ? null : posterPath)
+        //     .build();
         
         // Save movie to database
         if (movie.save()) {
