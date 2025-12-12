@@ -769,3 +769,882 @@ MoviePrototype newAction = registry.get("action").clone();
 ```
 
 هذا الشرح يغطي Prototype Pattern بالتفصيل الكامل! 🎉
+
+---
+
+## 7️⃣ Decorator Pattern (نمط المُزيِّن) - شرح مفصل
+
+### 📖 الشرح النظري الكامل:
+Decorator Pattern هو نمط تصميم structural يسمح بإضافة وظائف جديدة لكائنات موجودة ديناميكياً دون تغيير بنيتها. يعتمد على مبدأ "Composition over Inheritance".
+
+### 🏗️ المكونات الأساسية:
+1. **Component Interface**: الواجهة الأساسية (`Ticket`)
+2. **Concrete Component**: التنفيذ الأساسي (`BaseTicket`)
+3. **Decorator**: الكلاس المجرد الذي يغلف الـ Component
+4. **Concrete Decorators**: التنفيذات الفعلية (PopcornDrinkDecorator, ThreeDGlassesDecorator, etc.)
+5. **Helper Class**: `TicketPriceCalculator` - واجهة عامة لاستخدام الـ Pattern
+
+### 🎯 المشكلة التي يحلها:
+
+#### ❌ المشكلة بدون Decorator:
+```java
+// لازم نعمل كلاس لكل تركيبة ممكنة!
+class BasicTicket { }
+class TicketWithPopcorn { }
+class TicketWith3DGlasses { }
+class TicketWithPopcornAnd3D { }
+class TicketWithPopcornAndPremium { }
+class TicketWithEverything { }
+// ... 2^7 = 128 كلاس محتمل! 😱
+```
+
+#### ✅ الحل مع Decorator:
+```java
+// نبدأ بـ ticket أساسي ونضيف decorators ديناميكياً!
+Ticket ticket = new BaseTicket("Inception", "A1", 15.0);
+ticket = new PopcornDrinkDecorator(ticket, "Medium");
+ticket = new ThreeDGlassesDecorator(ticket);
+ticket = new PremiumSeatDecorator(ticket);
+// السعر والوصف يتحدثان تلقائياً! ✨
+```
+
+### 📂 التطبيق الكامل في المشروع:
+
+#### 1. البنية الأساسية (TicketDecorator.java):
+
+```java
+// Component Interface
+interface Ticket {
+    String getDescription();
+    double getCost();
+}
+
+// Concrete Component - Base Ticket
+class BaseTicket implements Ticket {
+    private String movieTitle;
+    private String seatNumber;
+    private double basePrice;
+    
+    public BaseTicket(String movieTitle, String seatNumber, double basePrice) {
+        this.movieTitle = movieTitle;
+        this.seatNumber = seatNumber;
+        this.basePrice = basePrice;
+    }
+    
+    @Override
+    public String getDescription() {
+        return "Movie: " + movieTitle + " | Seat: " + seatNumber;
+    }
+    
+    @Override
+    public double getCost() {
+        return basePrice;
+    }
+}
+
+// Abstract Decorator
+abstract class TicketDecorator implements Ticket {
+    protected Ticket ticket;  // الـ ticket الملفوف
+    
+    public TicketDecorator(Ticket ticket) {
+        this.ticket = ticket;
+    }
+    
+    @Override
+    public String getDescription() {
+        return ticket.getDescription();  // يمرر للـ decorator التالي
+    }
+    
+    @Override
+    public double getCost() {
+        return ticket.getCost();  // يمرر للـ decorator التالي
+    }
+}
+```
+
+#### 2. Decorators الفعلية:
+
+```java
+// Decorator 1: Popcorn & Drink
+class PopcornDrinkDecorator extends TicketDecorator {
+    private String comboSize;  // Small, Medium, Large
+    
+    public PopcornDrinkDecorator(Ticket ticket, String comboSize) {
+        super(ticket);
+        this.comboSize = comboSize;
+    }
+    
+    @Override
+    public String getDescription() {
+        return ticket.getDescription() + " + Popcorn & Drink Combo (" + comboSize + ")";
+    }
+    
+    @Override
+    public double getCost() {
+        double comboCost = comboSize.equals("Large") ? 9.99 : 
+                          comboSize.equals("Small") ? 5.99 : 7.99;
+        return ticket.getCost() + comboCost;  // السعر الأساسي + تكلفة الإضافة
+    }
+}
+
+// Decorator 2: 3D Glasses
+class ThreeDGlassesDecorator extends TicketDecorator {
+    public ThreeDGlassesDecorator(Ticket ticket) {
+        super(ticket);
+    }
+    
+    @Override
+    public String getDescription() {
+        return ticket.getDescription() + " + 3D Glasses";
+    }
+    
+    @Override
+    public double getCost() {
+        return ticket.getCost() + 3.50;
+    }
+}
+
+// Decorator 3: Premium Seat
+class PremiumSeatDecorator extends TicketDecorator {
+    public PremiumSeatDecorator(Ticket ticket) {
+        super(ticket);
+    }
+    
+    @Override
+    public String getDescription() {
+        return ticket.getDescription() + " + Premium Reclining Seat";
+    }
+    
+    @Override
+    public double getCost() {
+        return ticket.getCost() + 5.00;
+    }
+}
+
+// ... 4 decorators أخرى: VIPLoungeDecorator, ReservedParkingDecorator, 
+// MealVoucherDecorator, TicketInsuranceDecorator
+```
+
+#### 3. TicketPriceCalculator - Helper Class الجديد:
+
+```java
+/**
+ * Helper class لتسهيل استخدام Decorator Pattern
+ * يوفر واجهة بسيطة لحساب السعر النهائي مع الإضافات
+ */
+public class TicketPriceCalculator {
+    
+    public static double calculateTotalPrice(
+        String movieTitle, 
+        double basePricePerSeat, 
+        int numberOfSeats, 
+        boolean hasPopcorn, 
+        boolean has3DGlasses, 
+        boolean hasPremiumSeat
+    ) {
+        if (numberOfSeats == 0) {
+            return 0.0;
+        }
+        
+        // إنشاء base ticket (Decorator Pattern)
+        String representativeSeat = "A1";
+        Ticket ticket = new BaseTicket(movieTitle, representativeSeat, basePricePerSeat);
+        
+        // تطبيق decorators ديناميكياً
+        if (hasPopcorn) {
+            ticket = new PopcornDrinkDecorator(ticket, "Medium");
+        }
+        if (has3DGlasses) {
+            ticket = new ThreeDGlassesDecorator(ticket);
+        }
+        if (hasPremiumSeat) {
+            ticket = new PremiumSeatDecorator(ticket);
+        }
+        
+        // حساب السعر النهائي: سعر التذكرة المحسّن × عدد المقاعد
+        double enhancedPricePerSeat = ticket.getCost();
+        double total = enhancedPricePerSeat * numberOfSeats;
+        
+        // تعديل للعناصر التي تكون واحدة لكل حجز (مثل Popcorn)
+        if (hasPopcorn) {
+            double popcornCost = 7.99; // Medium size
+            total = total - (popcornCost * (numberOfSeats - 1));
+        }
+        
+        return total;
+    }
+}
+```
+
+### 📍 الاستخدام الفعلي في GUI:
+
+#### ✅ في BookTicket.java - استخدام TicketPriceCalculator:
+
+```java
+// في updateTotalPrice() - السطر 412-436
+private void updateTotalPrice() {
+    if (selectedSeats.isEmpty()) {
+        totalPriceLabel.setText("Total: $0.00");
+        return;
+    }
+    
+    // حساب السعر الأساسي مع theater multiplier (Factory Pattern)
+    double theaterMultiplier = selectedTheater != null ? 
+                               selectedTheater.getPriceMultiplier() : 1.0;
+    double basePricePerSeat = SEAT_PRICE * theaterMultiplier;
+    
+    // استخدام Decorator Pattern عبر TicketPriceCalculator
+    boolean hasPopcorn = popcornCheckBox != null && popcornCheckBox.isSelected();
+    boolean has3DGlasses = glasses3DCheckBox != null && glasses3DCheckBox.isSelected();
+    boolean hasPremiumSeat = premiumSeatCheckBox != null && premiumSeatCheckBox.isSelected();
+    
+    // حساب السعر النهائي باستخدام Decorator Pattern
+    double total = TicketPriceCalculator.calculateTotalPrice(
+        movie.getTitle(),
+        basePricePerSeat,
+        selectedSeats.size(),
+        hasPopcorn,
+        has3DGlasses,
+        hasPremiumSeat
+    );
+    
+    totalPriceLabel.setText(String.format("Total: $%.2f", total));
+}
+```
+
+**الواجهة**: في شاشة حجز التذاكر، يوجد panel بعنوان "Ticket Extras (Decorator Pattern)" يحتوي على:
+- ☑️ 🍿 Popcorn & Drink (+$7.99)
+- ☑️ 🕶️ 3D Glasses (+$3.50)
+- ☑️ 💺 Premium Seat Upgrade (+$5.00)
+
+عند اختيار أي checkbox، يتم تحديث السعر تلقائياً باستخدام Decorator Pattern!
+
+### 🎬 سيناريو كامل - تجربة المستخدم:
+
+**الموقف**: مستخدم يريد حجز تذاكر لفيلم "Inception"
+
+**الخطوات**:
+1. يفتح شاشة BookTicket
+2. يختار 3 مقاعد: A1, A2, A3
+3. **السعر الأساسي**: $15.00 × 3 = $45.00
+4. يختار "Popcorn & Drink" ☑️
+   - **السعر الجديد**: $45.00 + $7.99 = $52.99
+5. يختار "3D Glasses" ☑️
+   - **السعر الجديد**: $52.99 + $3.50 = $56.49
+6. يختار "Premium Seat" ☑️
+   - **السعر الجديد**: $56.49 + ($5.00 × 3) = $71.49
+7. ✨ **السحر**: كل تعديل يحدث تلقائياً عبر Decorator Pattern!
+
+### ✨ الفوائد العملية:
+
+#### 1. **المرونة الديناميكية**:
+```java
+// يمكن إضافة أو إزالة decorators في runtime
+Ticket ticket = new BaseTicket("Movie", "A1", 15.0);
+
+// إضافة decorators حسب اختيار المستخدم
+if (userWantsPopcorn) {
+    ticket = new PopcornDrinkDecorator(ticket, "Large");
+}
+if (userWants3D) {
+    ticket = new ThreeDGlassesDecorator(ticket);
+}
+// السعر والوصف يتحدثان تلقائياً!
+```
+
+#### 2. **Open-Closed Principle**:
+```java
+// ✅ مفتوح للتوسع: إضافة decorator جديد لا يحتاج تعديل الكود القديم
+class VRExperienceDecorator extends TicketDecorator {
+    // decorator جديد - لا نحتاج تعديل BaseTicket أو decorators أخرى!
+}
+
+// ❌ مغلق للتعديل: BaseTicket لا يتغير
+```
+
+#### 3. **Composition over Inheritance**:
+```java
+// ❌ Inheritance: 2^7 = 128 كلاس محتمل!
+class TicketWithPopcornAnd3DAndPremium { }
+
+// ✅ Composition: decorators مركبة ديناميكياً
+Ticket ticket = new BaseTicket(...);
+ticket = new PopcornDrinkDecorator(ticket, "Medium");
+ticket = new ThreeDGlassesDecorator(ticket);
+ticket = new PremiumSeatDecorator(ticket);
+```
+
+#### 4. **سهولة الاستخدام مع TicketPriceCalculator**:
+```java
+// بدون TicketPriceCalculator: كود معقد
+Ticket ticket = new BaseTicket(...);
+if (hasPopcorn) ticket = new PopcornDrinkDecorator(ticket, "Medium");
+if (has3D) ticket = new ThreeDGlassesDecorator(ticket);
+double price = ticket.getCost() * numberOfSeats;
+// ... منطق معقد للتعديل
+
+// مع TicketPriceCalculator: سطر واحد!
+double total = TicketPriceCalculator.calculateTotalPrice(
+    movieTitle, basePrice, numberOfSeats, 
+    hasPopcorn, has3D, hasPremium
+);
+```
+
+### 📊 جميع Decorators المتاحة:
+
+| Decorator | الوصف | السعر الإضافي |
+|-----------|-------|---------------|
+| `PopcornDrinkDecorator` | وجبة فشار ومشروب | $5.99 (Small), $7.99 (Medium), $9.99 (Large) |
+| `ThreeDGlassesDecorator` | نظارات ثلاثية الأبعاد | $3.50 |
+| `PremiumSeatDecorator` | ترقية لمقعد فاخر | $5.00 |
+| `VIPLoungeDecorator` | دخول صالة VIP | $15.00 |
+| `ReservedParkingDecorator` | موقف سيارة محجوز | $5.00 |
+| `MealVoucherDecorator` | قسيمة وجبة | $8.99 (Snack), $15.99 (Dinner), $22.99 (Deluxe) |
+| `TicketInsuranceDecorator` | تأمين إلغاء/تأجيل | $2.50 |
+
+### 🔄 المقارنة:
+
+| الميزة | بدون Decorator | مع Decorator |
+|--------|---------------|--------------|
+| **عدد Classes** | 128 كلاس محتمل 😱 | 1 Component + 7 Decorators ✅ |
+| **المرونة** | ثابت - كل تركيبة كلاس منفصل | ديناميكي - تركيبات لا نهائية ✅ |
+| **الصيانة** | تعديل صعب - كل كلاس منفصل | سهل - تعديل decorator واحد ✅ |
+| **التوسع** | إضافة كلاس جديد لكل تركيبة | إضافة decorator واحد فقط ✅ |
+
+### 💡 متى تستخدم Decorator:
+
+**استخدمه عندما**:
+- ✅ تريد إضافة وظائف ديناميكياً
+- ✅ عدد التركيبات الممكنة كبير جداً
+- ✅ تريد تجنب "class explosion"
+- ✅ الوظائف الإضافية مستقلة عن بعضها
+
+**لا تستخدمه عندما**:
+- ❌ الوظائف الإضافية معقدة جداً ومترابطة
+- ❌ عدد التركيبات قليل (2-3 فقط)
+- ❌ الـ Component بسيط جداً
+
+---
+
+## 5️⃣ Adapter Pattern (نمط المحول) - شرح مفصل
+
+### 📖 الشرح النظري الكامل:
+Adapter Pattern هو نمط تصميم structural يسمح لكائنات غير متوافقة بالعمل معاً. يحول واجهة كلاس إلى واجهة أخرى يتوقعها العميل.
+
+### 🏗️ المكونات الأساسية:
+1. **Target Interface**: الواجهة التي يتوقعها النظام (`PaymentProcessor`)
+2. **Adaptee**: الأنظمة الموجودة غير المتوافقة (CreditCardPaymentSystem, PayPalPaymentSystem, BankTransferSystem)
+3. **Adapter**: الكلاس الذي يحول Adaptee إلى Target (CreditCardAdapter, PayPalAdapter, BankTransferAdapter)
+4. **Adapter Factory**: `PaymentAdapterFactory` - لإنشاء الـ Adapter المناسب
+
+### 🎯 المشكلة التي يحلها:
+
+#### ❌ المشكلة بدون Adapter:
+```java
+// كل نظام دفع له واجهة مختلفة!
+CreditCardPaymentSystem.chargeCreditCard(cardNumber, cvv, amount);
+PayPalPaymentSystem.makePayment(email, totalAmount);
+BankTransferSystem.transferFunds(accountNumber, funds);
+
+// في BookTicket.java - كود معقد ومكرر!
+if (paymentMethod.equals("Credit Card")) {
+    CreditCardPaymentSystem cc = new CreditCardPaymentSystem();
+    cc.chargeCreditCard(cardNumber, cvv, amount);
+} else if (paymentMethod.equals("PayPal")) {
+    PayPalPaymentSystem pp = new PayPalPaymentSystem();
+    pp.makePayment(email, amount);
+} else if (paymentMethod.equals("Bank Transfer")) {
+    BankTransferSystem bt = new BankTransferSystem();
+    bt.transferFunds(accountNumber, amount);
+}
+// ... كود مكرر ومعقد! 😫
+```
+
+#### ✅ الحل مع Adapter:
+```java
+// واجهة موحدة لجميع أنظمة الدفع!
+PaymentProcessor processor = PaymentAdapterFactory.createPaymentProcessor(method);
+processor.processPayment(amount, customerInfo);
+// نفس الكود لكل طريقة دفع! ✨
+```
+
+### 📂 التطبيق الكامل في المشروع:
+
+#### 1. Target Interface (PaymentProcessor.java):
+
+```java
+/**
+ * الواجهة الموحدة التي يتوقعها النظام
+ */
+public interface PaymentProcessor {
+    boolean processPayment(double amount, String customerInfo);
+    String getPaymentStatus();
+    String getTransactionId();
+}
+```
+
+#### 2. Adaptees - الأنظمة الموجودة (PaymentAdapter.java):
+
+```java
+// Adaptee 1: Credit Card System
+class CreditCardPaymentSystem {
+    private String transactionId;
+    
+    public boolean chargeCreditCard(String cardNumber, String cvv, double amount) {
+        // منطق معالجة البطاقة الائتمانية
+        this.transactionId = "CC-" + System.currentTimeMillis();
+        return true;
+    }
+    
+    public String getLastTransactionId() {
+        return transactionId;
+    }
+}
+
+// Adaptee 2: PayPal System
+class PayPalPaymentSystem {
+    private String orderId;
+    
+    public boolean makePayment(String email, double totalAmount) {
+        // منطق معالجة PayPal
+        this.orderId = "PP-" + System.currentTimeMillis();
+        return true;
+    }
+    
+    public String getOrderId() {
+        return orderId;
+    }
+}
+
+// Adaptee 3: Bank Transfer System
+class BankTransferSystem {
+    private String referenceNumber;
+    
+    public boolean transferFunds(String accountNumber, double funds) {
+        // منطق التحويل البنكي
+        this.referenceNumber = "BT-" + System.currentTimeMillis();
+        return true;
+    }
+    
+    public String getReferenceNumber() {
+        return referenceNumber;
+    }
+}
+```
+
+#### 3. Adapters - المحولات (PaymentAdapter.java):
+
+```java
+// Adapter 1: Credit Card Adapter
+class CreditCardAdapter implements PaymentProcessor {
+    private CreditCardPaymentSystem creditCardSystem;
+    private boolean paymentSuccessful;
+    
+    public CreditCardAdapter() {
+        this.creditCardSystem = new CreditCardPaymentSystem();
+    }
+    
+    @Override
+    public boolean processPayment(double amount, String customerInfo) {
+        // تحويل customerInfo إلى cardNumber و CVV
+        String[] parts = customerInfo.split(",");
+        String cardNumber = parts.length > 0 ? parts[0] : "XXXX";
+        String cvv = parts.length > 1 ? parts[1] : "XXX";
+        
+        // استخدام Adaptee
+        paymentSuccessful = creditCardSystem.chargeCreditCard(cardNumber, cvv, amount);
+        return paymentSuccessful;
+    }
+    
+    @Override
+    public String getPaymentStatus() {
+        return paymentSuccessful ? "Payment Successful via Credit Card" : "Payment Failed";
+    }
+    
+    @Override
+    public String getTransactionId() {
+        return creditCardSystem.getLastTransactionId();
+    }
+}
+
+// Adapter 2: PayPal Adapter
+class PayPalAdapter implements PaymentProcessor {
+    private PayPalPaymentSystem paypalSystem;
+    private boolean paymentSuccessful;
+    
+    public PayPalAdapter() {
+        this.paypalSystem = new PayPalPaymentSystem();
+    }
+    
+    @Override
+    public boolean processPayment(double amount, String customerInfo) {
+        // customerInfo هو email في حالة PayPal
+        paymentSuccessful = paypalSystem.makePayment(customerInfo, amount);
+        return paymentSuccessful;
+    }
+    
+    @Override
+    public String getPaymentStatus() {
+        return paymentSuccessful ? "Payment Successful via PayPal" : "Payment Failed";
+    }
+    
+    @Override
+    public String getTransactionId() {
+        return paypalSystem.getOrderId();
+    }
+}
+
+// Adapter 3: Bank Transfer Adapter
+class BankTransferAdapter implements PaymentProcessor {
+    private BankTransferSystem bankSystem;
+    private boolean paymentSuccessful;
+    
+    public BankTransferAdapter() {
+        this.bankSystem = new BankTransferSystem();
+    }
+    
+    @Override
+    public boolean processPayment(double amount, String customerInfo) {
+        // customerInfo هو accountNumber في حالة Bank Transfer
+        paymentSuccessful = bankSystem.transferFunds(customerInfo, amount);
+        return paymentSuccessful;
+    }
+    
+    @Override
+    public String getPaymentStatus() {
+        return paymentSuccessful ? "Payment Successful via Bank Transfer" : "Payment Failed";
+    }
+    
+    @Override
+    public String getTransactionId() {
+        return bankSystem.getReferenceNumber();
+    }
+}
+```
+
+#### 4. PaymentAdapterFactory - Factory للـ Adapters:
+
+```java
+/**
+ * Factory Pattern + Adapter Pattern
+ * يسهل إنشاء الـ Adapter المناسب حسب طريقة الدفع
+ */
+public class PaymentAdapterFactory {
+    public enum PaymentMethod {
+        CREDIT_CARD, PAYPAL, BANK_TRANSFER
+    }
+    
+    public static PaymentProcessor createPaymentProcessor(PaymentMethod method) {
+        switch (method) {
+            case CREDIT_CARD:
+                return new CreditCardAdapter();
+            case PAYPAL:
+                return new PayPalAdapter();
+            case BANK_TRANSFER:
+                return new BankTransferAdapter();
+            default:
+                return new CreditCardAdapter(); // Default
+        }
+    }
+}
+```
+
+### 📍 الاستخدام الفعلي في GUI:
+
+#### ✅ في BookTicket.java - استخدام PaymentAdapterFactory:
+
+```java
+// في confirmBooking() - السطر 495-550
+private void confirmBooking() {
+    // ... بناء الحجز
+    
+    // استخدام Adapter Pattern للدفع
+    String[] paymentOptions = {"Credit Card", "PayPal", "Bank Transfer"};
+    int paymentChoice = JOptionPane.showOptionDialog(this,
+        String.format("Total Amount: $%.2f\nSelect Payment Method:", finalPrice),
+        "Payment Method (Adapter Pattern)",
+        JOptionPane.DEFAULT_OPTION,
+        JOptionPane.QUESTION_MESSAGE,
+        null,
+        paymentOptions,
+        paymentOptions[0]);
+    
+    if (paymentChoice == -1) {
+        return; // المستخدم ألغى
+    }
+    
+    // تحديد طريقة الدفع
+    PaymentMethod method;
+    switch (paymentChoice) {
+        case 0:
+            method = PaymentMethod.CREDIT_CARD;
+            break;
+        case 1:
+            method = PaymentMethod.PAYPAL;
+            break;
+        case 2:
+            method = PaymentMethod.BANK_TRANSFER;
+            break;
+        default:
+            method = PaymentMethod.CREDIT_CARD;
+    }
+    
+    // استخدام Factory لإنشاء Adapter المناسب
+    PaymentProcessor processor = PaymentAdapterFactory.createPaymentProcessor(method);
+    String customerInfo = bookingSystem.getCurrentUser().getEmail();
+    
+    // معالجة الدفع - نفس الكود لكل طريقة!
+    if (processor.processPayment(finalPrice, customerInfo)) {
+        // نجح الدفع
+        String transactionId = processor.getTransactionId();
+        String status = processor.getPaymentStatus();
+        // ... عرض رسالة النجاح
+    }
+}
+```
+
+**الواجهة**: عند تأكيد الحجز، يظهر dialog بعنوان "Payment Method (Adapter Pattern)" مع 3 خيارات:
+- 💳 Credit Card
+- 💰 PayPal
+- 🏦 Bank Transfer
+
+بغض النظر عن الاختيار، نفس الكود يتعامل مع جميع الطرق!
+
+### 🎬 سيناريو كامل - تجربة المستخدم:
+
+**الموقف**: مستخدم يريد دفع $71.49 لحجز التذاكر
+
+**الخطوات**:
+1. يضغط "Confirm Booking"
+2. يظهر dialog بطرق الدفع
+3. يختار "PayPal" 💰
+4. ✨ **السحر يحدث**:
+   ```java
+   PaymentMethod method = PaymentMethod.PAYPAL;
+   PaymentProcessor processor = PaymentAdapterFactory.createPaymentProcessor(method);
+   // يتم إنشاء PayPalAdapter تلقائياً
+   
+   processor.processPayment(71.49, "user@email.com");
+   // PayPalAdapter يحول هذا إلى:
+   // paypalSystem.makePayment("user@email.com", 71.49);
+   ```
+5. يظهر Transaction ID: "PP-1234567890"
+6. رسالة نجاح: "Payment Successful via PayPal"
+
+### ✨ الفوائد العملية:
+
+#### 1. **واجهة موحدة**:
+```java
+// نفس الكود لكل طريقة دفع!
+PaymentProcessor processor = PaymentAdapterFactory.createPaymentProcessor(method);
+processor.processPayment(amount, customerInfo);
+String transactionId = processor.getTransactionId();
+```
+
+#### 2. **سهولة إضافة طرق دفع جديدة**:
+```java
+// لإضافة Crypto Payment:
+// 1. إنشاء CryptoPaymentSystem (Adaptee)
+// 2. إنشاء CryptoAdapter (Adapter)
+// 3. إضافة case في PaymentAdapterFactory
+case CRYPTO:
+    return new CryptoAdapter();
+
+// الكود القديم لا يتغير! ✅
+```
+
+#### 3. **فصل الاهتمامات (Separation of Concerns)**:
+```java
+// BookTicket.java لا يعرف تفاصيل PayPal أو Credit Card
+// كل شيء معزول في Adapters
+```
+
+#### 4. **سهولة الاختبار (Testability)**:
+```java
+// يمكن عمل Mock Adapter للاختبار
+class MockPaymentAdapter implements PaymentProcessor {
+    public boolean processPayment(double amount, String info) {
+        return true; // للاختبار فقط
+    }
+}
+```
+
+### 🔄 المقارنة:
+
+| الميزة | بدون Adapter | مع Adapter |
+|--------|-------------|------------|
+| **الكود** | if-else معقد ومكرر | كود واحد موحد ✅ |
+| **إضافة طريقة دفع** | تعديل في كل مكان | إضافة Adapter واحد ✅ |
+| **الصيانة** | صعب - منطق مبعثر | سهل - منطق مركزي ✅ |
+| **الاختبار** | صعب - كل طريقة منفصلة | سهل - Mock Adapter ✅ |
+
+### 💡 متى تستخدم Adapter:
+
+**استخدمه عندما**:
+- ✅ تريد استخدام كلاس موجود بواجهة غير متوافقة
+- ✅ تريد توحيد واجهات أنظمة مختلفة
+- ✅ تريد إضافة أنظمة جديدة دون تعديل الكود القديم
+
+**لا تستخدمه عندما**:
+- ❌ يمكن تعديل الـ Adaptee مباشرة
+- ❌ الواجهات متوافقة بالفعل
+- ❌ التعقيد لا يستحق
+
+---
+
+## 2️⃣ Factory Pattern - TheaterFactory (تحديث)
+
+### 📖 التحديثات الجديدة:
+تم تحديث `TheaterFactory` ليشمل 5 أنواع من الصالات مع price multipliers مختلفة.
+
+### 📂 التطبيق المحدث:
+
+```java
+public class TheaterFactory {
+    
+    public enum TheaterType {
+        STANDARD, IMAX, VIP, DOLBY_ATMOS, FOUR_DX
+    }
+    
+    public static Theater createTheater(TheaterType type, int capacity) {
+        switch (type) {
+            case STANDARD:
+                return new StandardTheater(capacity);
+            case IMAX:
+                return new IMAXTheater(capacity);
+            case VIP:
+                return new VIPTheater(capacity);
+            case DOLBY_ATMOS:
+                return new DolbyAtmosTheater(capacity);
+            case FOUR_DX:
+                return new FourDXTheater(capacity);
+            default:
+                return new StandardTheater(capacity);
+        }
+    }
+    
+    // Theater Interface
+    public interface Theater {
+        String getName();
+        String getDescription();
+        double getPriceMultiplier();  // مهم للأسعار!
+        int getCapacity();
+        String[] getFeatures();
+    }
+    
+    // Standard Theater - السعر الأساسي
+    static class StandardTheater implements Theater {
+        public double getPriceMultiplier() { return 1.0; }
+        public String[] getFeatures() {
+            return new String[]{"Comfortable Seating", "Digital Sound", "HD Screen"};
+        }
+    }
+    
+    // IMAX Theater - سعر أعلى بـ 80%
+    static class IMAXTheater implements Theater {
+        public double getPriceMultiplier() { return 1.8; }
+        public String[] getFeatures() {
+            return new String[]{"Giant IMAX Screen", "12-Channel Sound", 
+                              "Laser Projection", "Premium Seating"};
+        }
+    }
+    
+    // VIP Theater - سعر أعلى بـ 150%
+    static class VIPTheater implements Theater {
+        public double getPriceMultiplier() { return 2.5; }
+        public String[] getFeatures() {
+            return new String[]{"Reclining Leather Seats", "Waiter Service", 
+                              "Premium Sound", "Extra Legroom"};
+        }
+    }
+    
+    // Dolby Atmos Theater - سعر أعلى بـ 50%
+    static class DolbyAtmosTheater implements Theater {
+        public double getPriceMultiplier() { return 1.5; }
+        public String[] getFeatures() {
+            return new String[]{"Dolby Atmos Sound", "Enhanced Visuals", 
+                              "Comfortable Seating", "Object-Based Audio"};
+        }
+    }
+    
+    // 4DX Theater - سعر أعلى بـ 100%
+    static class FourDXTheater implements Theater {
+        public double getPriceMultiplier() { return 2.0; }
+        public String[] getFeatures() {
+            return new String[]{"Motion Seats", "Wind Effects", "Water Spray", 
+                              "Scent Effects", "Lighting Effects"};
+        }
+    }
+}
+```
+
+### 📍 الاستخدام في BookTicket.java:
+
+```java
+// في BookTicket.java - السطر 254-330
+// Factory Pattern - Theater Type Selection
+JPanel theaterPanel = new JPanel();
+theaterPanel.setBorder(BorderFactory.createTitledBorder(
+    BorderFactory.createLineBorder(new Color(59, 67, 84)),
+    "Theater Type (Factory Pattern)",
+    ...
+));
+
+String[] theaterTypes = {"STANDARD", "IMAX", "VIP", "DOLBY_ATMOS", "FOUR_DX"};
+theaterTypeCombo = new JComboBox<>(theaterTypes);
+
+// إنشاء theater افتراضي
+currentTheaterType = TheaterType.STANDARD;
+selectedTheater = TheaterFactory.createTheater(currentTheaterType, ROWS * COLS);
+
+// عند تغيير الاختيار
+theaterTypeCombo.addActionListener(e -> {
+    String selected = (String) theaterTypeCombo.getSelectedItem();
+    currentTheaterType = TheaterType.valueOf(selected);
+    selectedTheater = TheaterFactory.createTheater(currentTheaterType, ROWS * COLS);
+    updateTotalPrice();  // تحديث السعر تلقائياً!
+    
+    // عرض معلومات الصالة
+    JLabel theaterInfoLabel = new JLabel(
+        "<html><div style='width:250px'>" +
+        "<b>" + selectedTheater.getName() + "</b><br/>" +
+        selectedTheater.getDescription() + "<br/>" +
+        "<small>Price Multiplier: " + 
+        String.format("%.1fx", selectedTheater.getPriceMultiplier()) + 
+        "</small>" +
+        "</div></html>"
+    );
+    // ... عرض المعلومات
+});
+```
+
+### 🎬 مثال عملي:
+
+```java
+// المستخدم يختار IMAX
+TheaterType type = TheaterType.IMAX;
+Theater theater = TheaterFactory.createTheater(type, 200);
+
+// حساب السعر
+double basePrice = 15.00;
+double finalPrice = basePrice * theater.getPriceMultiplier();
+// finalPrice = 15.00 * 1.8 = 27.00
+
+// عرض المميزات
+String[] features = theater.getFeatures();
+// ["Giant IMAX Screen", "12-Channel Sound", "Laser Projection", "Premium Seating"]
+```
+
+### 📊 جدول المقارنة:
+
+| Theater Type | Price Multiplier | السعر (من $15) | المميزات |
+|--------------|------------------|-----------------|----------|
+| **STANDARD** | 1.0x | $15.00 | Comfortable Seating, Digital Sound, HD Screen |
+| **IMAX** | 1.8x | $27.00 | Giant Screen, 12-Channel Sound, Laser Projection |
+| **VIP** | 2.5x | $37.50 | Reclining Seats, Waiter Service, Premium Sound |
+| **DOLBY_ATMOS** | 1.5x | $22.50 | Dolby Atmos Sound, Enhanced Visuals, Object-Based Audio |
+| **FOUR_DX** | 2.0x | $30.00 | Motion Seats, Wind Effects, Water Spray, Scent Effects |
+
+---
+
+هذا الشرح يغطي جميع التحديثات الجديدة! 🎉

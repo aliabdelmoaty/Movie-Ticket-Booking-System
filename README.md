@@ -157,9 +157,11 @@ This project implements **7 design patterns** to demonstrate best practices in s
 ### 5. **Adapter Pattern** 🔌
 - **Purpose**: Integrate incompatible payment systems
 - **Implementation**:
-  - `PaymentAdapter` - Unified interface for multiple payment methods
+  - `PaymentProcessor` - Unified interface (Target)
+  - `PaymentAdapter` - Adapters for payment systems
   - `CreditCardAdapter`, `PayPalAdapter`, `BankTransferAdapter`
-- **Benefits**: Flexibility, extensibility, separation of concerns
+  - `PaymentAdapterFactory` - Factory to create appropriate adapter
+- **Benefits**: Flexibility, extensibility, separation of concerns, unified interface
 
 ### 6. **Proxy Pattern** 🛡️
 - **Purpose**: Control access and add functionality
@@ -327,14 +329,14 @@ The database is automatically created on first run. The database file `moviebook
 - **Modification**: Change `DB_URL` constant if needed
 
 #### Default Pricing
-- **Base Seat Price**: Configurable in `BookingBuilder.java`
-- **Service Fee**: Default 1.5 (configurable)
+- **Base Seat Price**: $15.00 (configurable in `BookTicket.java`)
+- **Service Fee**: Default $1.50 (configurable in `BookingBuilder.java`)
 - **Theater Multipliers**: Defined in `TheaterFactory.java`
-  - Standard: 1.0x
-  - IMAX: 1.8x
-  - VIP: 2.5x
-  - Dolby Atmos: 1.5x
-  - 4DX: 2.0x
+  - Standard: 1.0x ($15.00)
+  - IMAX: 1.8x ($27.00)
+  - VIP: 2.5x ($37.50)
+  - Dolby Atmos: 1.5x ($22.50)
+  - 4DX: 2.0x ($30.00)
 
 #### Discount Rates
 - **Student Discount**: 15%
@@ -382,9 +384,9 @@ movieTicketBookingSystem/
 │
 ├── src/                             # Source code
 │   ├── adapter/                     # Adapter Pattern
-│   │   ├── PaymentAdapter.java
-│   │   ├── PaymentAdapterFactory.java
-│   │   └── PaymentProcessor.java
+│   │   ├── PaymentAdapter.java      # Adapters + Adaptees
+│   │   ├── PaymentAdapterFactory.java # Factory for adapters
+│   │   └── PaymentProcessor.java     # Target interface
 │   │
 │   ├── builder/                     # Builder Pattern
 │   │   ├── BookingBuilder.java
@@ -398,7 +400,8 @@ movieTicketBookingSystem/
 │   │   └── DatabaseManager.java    # Singleton: Database connection
 │   │
 │   ├── decorator/                   # Decorator Pattern
-│   │   └── TicketDecorator.java
+│   │   ├── TicketDecorator.java     # Base decorator + 7 concrete decorators
+│   │   └── TicketPriceCalculator.java # Helper class for price calculation
 │   │
 │   ├── factory/                     # Factory Pattern
 │   │   ├── MovieFactory.java        # Movie creation by genre

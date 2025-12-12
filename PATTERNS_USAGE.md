@@ -220,7 +220,7 @@ public class MovieFactory {
 }
 ```
 
-#### 2. TheaterFactory.java
+#### 2. TheaterFactory.java (محدث - 5 أنواع)
 ```java
 public class TheaterFactory {
     
@@ -236,26 +236,65 @@ public class TheaterFactory {
                 return new IMAXTheater(capacity);
             case VIP:
                 return new VIPTheater(capacity);
-            // ... باقي الأنواع
+            case DOLBY_ATMOS:
+                return new DolbyAtmosTheater(capacity);
+            case FOUR_DX:
+                return new FourDXTheater(capacity);
+            default:
+                return new StandardTheater(capacity);
         }
     }
     
-    // كل Theater له مواصفات مختلفة
+    // Theater Interface
+    public interface Theater {
+        String getName();
+        String getDescription();
+        double getPriceMultiplier();  // مهم للأسعار!
+        int getCapacity();
+        String[] getFeatures();
+    }
+    
+    // Standard Theater - السعر الأساسي (1.0x)
+    static class StandardTheater implements Theater {
+        public double getPriceMultiplier() { return 1.0; }
+        public String[] getFeatures() {
+            return new String[]{"Comfortable Seating", "Digital Sound", "HD Screen"};
+        }
+    }
+    
+    // IMAX Theater - سعر أعلى بـ 80% (1.8x)
     static class IMAXTheater implements Theater {
-        public String getName() { return "IMAX Theater"; }
-        public double getPriceMultiplier() { return 1.8; }  // سعر أعلى
+        public double getPriceMultiplier() { return 1.8; }
         public String[] getFeatures() {
             return new String[]{"Giant IMAX Screen", "12-Channel Sound", 
                               "Laser Projection", "Premium Seating"};
         }
     }
     
+    // VIP Theater - سعر أعلى بـ 150% (2.5x)
     static class VIPTheater implements Theater {
-        public String getName() { return "VIP Luxury Theater"; }
-        public double getPriceMultiplier() { return 2.5; }  // أغلى سعر
+        public double getPriceMultiplier() { return 2.5; }
         public String[] getFeatures() {
             return new String[]{"Reclining Leather Seats", "Waiter Service", 
                               "Premium Sound", "Extra Legroom"};
+        }
+    }
+    
+    // Dolby Atmos Theater - سعر أعلى بـ 50% (1.5x)
+    static class DolbyAtmosTheater implements Theater {
+        public double getPriceMultiplier() { return 1.5; }
+        public String[] getFeatures() {
+            return new String[]{"Dolby Atmos Sound", "Enhanced Visuals", 
+                              "Comfortable Seating", "Object-Based Audio"};
+        }
+    }
+    
+    // 4DX Theater - سعر أعلى بـ 100% (2.0x)
+    static class FourDXTheater implements Theater {
+        public double getPriceMultiplier() { return 2.0; }
+        public String[] getFeatures() {
+            return new String[]{"Motion Seats", "Wind Effects", "Water Spray", 
+                              "Scent Effects", "Lighting Effects"};
         }
     }
 }
@@ -263,7 +302,7 @@ public class TheaterFactory {
 
 ### 📍 أين استخدم في الكود:
 
-#### ✅ في AddMovieDialog.java (السطر 50-65):
+#### ✅ 1. في AddMovieDialog.java (السطر 235):
 
 **الواجهة (UI)**:
 ```java
@@ -326,18 +365,51 @@ Movie movie = MovieFactory.createMovie(movieType, title, duration, rating, descr
 2. **Consistency**: كل أفلام الـ Action لها نفس النمط من الوصف
 3. **Extensibility**: لإضافة نوع جديد، فقط أضف case واحد في Factory
 
-#### 2. TheaterFactory:
+#### ✅ 2. في BookTicket.java - Theater Selection (السطر 254-330):
+
+**الواجهة**: Panel بعنوان "Theater Type (Factory Pattern)" مع ComboBox:
+```java
+String[] theaterTypes = {"STANDARD", "IMAX", "VIP", "DOLBY_ATMOS", "FOUR_DX"};
+theaterTypeCombo = new JComboBox<>(theaterTypes);
+
+// إنشاء theater افتراضي
+currentTheaterType = TheaterType.STANDARD;
+selectedTheater = TheaterFactory.createTheater(currentTheaterType, ROWS * COLS);
+
+// عند تغيير الاختيار
+theaterTypeCombo.addActionListener(e -> {
+    String selected = (String) theaterTypeCombo.getSelectedItem();
+    currentTheaterType = TheaterType.valueOf(selected);
+    selectedTheater = TheaterFactory.createTheater(currentTheaterType, ROWS * COLS);
+    updateTotalPrice();  // تحديث السعر تلقائياً!
+    
+    // عرض معلومات الصالة
+    JLabel theaterInfoLabel = new JLabel(
+        "<html><div style='width:250px'>" +
+        "<b>" + selectedTheater.getName() + "</b><br/>" +
+        selectedTheater.getDescription() + "<br/>" +
+        "<small>Price Multiplier: " + 
+        String.format("%.1fx", selectedTheater.getPriceMultiplier()) + 
+        "</small>" +
+        "</div></html>"
+    );
+    // ... عرض المعلومات
+});
+```
 
 **السيناريو**: نظام التسعير مختلف حسب نوع الصالة
-- **Standard**: سعر عادي (1.0x)
-- **IMAX**: سعر أعلى بـ 80% (1.8x)
-- **VIP**: سعر أعلى بـ 150% (2.5x)
+- **STANDARD**: سعر عادي (1.0x) - $15.00
+- **IMAX**: سعر أعلى بـ 80% (1.8x) - $27.00
+- **VIP**: سعر أعلى بـ 150% (2.5x) - $37.50
+- **DOLBY_ATMOS**: سعر أعلى بـ 50% (1.5x) - $22.50
+- **FOUR_DX**: سعر أعلى بـ 100% (2.0x) - $30.00
 
 ```java
-// عند حساب السعر
-Theater theater = TheaterFactory.createTheater(TheaterType.IMAX, 200);
-double basePrice = 10.0;
-double finalPrice = basePrice * theater.getPriceMultiplier();  // 10 * 1.8 = 18
+// عند حساب السعر في updateTotalPrice()
+double theaterMultiplier = selectedTheater != null ? 
+                           selectedTheater.getPriceMultiplier() : 1.0;
+double basePricePerSeat = SEAT_PRICE * theaterMultiplier;
+// مثال: IMAX = 15.00 * 1.8 = 27.00
 ```
 
 ### ✨ الفوائد العملية:
@@ -493,39 +565,67 @@ newMovie.save();
 ## 5️⃣ Adapter Pattern (نمط المحول)
 
 ### 📂 الملفات:
-- `src/adapter/PaymentProcessor.java` (الواجهة الموحدة)
-- `src/adapter/PaymentAdapter.java` (3 محولات)
-- `src/adapter/PaymentAdapterFactory.java`
+- `src/adapter/PaymentProcessor.java` (الواجهة الموحدة - Target Interface)
+- `src/adapter/PaymentAdapter.java` (3 محولات + 3 أنظمة دفع)
+- `src/adapter/PaymentAdapterFactory.java` (Factory لإنشاء Adapters)
 
 ### 📍 أين استخدم:
 
-#### ✅ في BookTicket.java - عند تأكيد الحجز (السطر 388):
+#### ✅ في BookTicket.java - عند تأكيد الحجز (السطر 495-550):
 ```java
 // استخدام حقيقي في الكود!
 // يظهر dialog لاختيار طريقة الدفع
 String[] paymentOptions = {"Credit Card", "PayPal", "Bank Transfer"};
-int paymentChoice = JOptionPane.showOptionDialog(...);
+int paymentChoice = JOptionPane.showOptionDialog(this,
+    String.format("Total Amount: $%.2f\nSelect Payment Method:", finalPrice),
+    "Payment Method (Adapter Pattern)",
+    JOptionPane.DEFAULT_OPTION,
+    JOptionPane.QUESTION_MESSAGE,
+    null,
+    paymentOptions,
+    paymentOptions[0]);
 
+// تحديد طريقة الدفع
+PaymentMethod method;
+switch (paymentChoice) {
+    case 0: method = PaymentMethod.CREDIT_CARD; break;
+    case 1: method = PaymentMethod.PAYPAL; break;
+    case 2: method = PaymentMethod.BANK_TRANSFER; break;
+    default: method = PaymentMethod.CREDIT_CARD;
+}
+
+// استخدام Factory لإنشاء Adapter المناسب
 PaymentProcessor processor = PaymentAdapterFactory.createPaymentProcessor(method);
 String customerInfo = bookingSystem.getCurrentUser().getEmail();
 
 if (processor.processPayment(finalPrice, customerInfo)) {
     // إظهار Transaction ID ورسالة النجاح
-    message.append("Transaction ID: ").append(processor.getTransactionId());
+    String transactionId = processor.getTransactionId();
+    String status = processor.getPaymentStatus();
+    message.append("Transaction ID: ").append(transactionId);
+    message.append("\nPayment: ").append(status);
 }
 ```
 
-**الواجهة**: عند تأكيد الحجز، يختار المستخدم طريقة الدفع من 3 خيارات!
+**الواجهة**: عند تأكيد الحجز، يظهر dialog بعنوان "Payment Method (Adapter Pattern)" مع 3 خيارات:
+- 💳 Credit Card
+- 💰 PayPal  
+- 🏦 Bank Transfer
 
 ### 🎯 ليه استخدمناه:
-- أنظمة الدفع المختلفة (Credit Card, PayPal, Bank) لها واجهات مختلفة
-- نحتاج واجهة موحدة للتعامل مع جميع أنظمة الدفع
-- سهولة إضافة طرق دفع جديدة دون تغيير الكود الأساسي
+- **أنظمة الدفع المختلفة** لها واجهات مختلفة:
+  - `CreditCardPaymentSystem.chargeCreditCard(cardNumber, cvv, amount)`
+  - `PayPalPaymentSystem.makePayment(email, totalAmount)`
+  - `BankTransferSystem.transferFunds(accountNumber, funds)`
+- **واجهة موحدة**: `PaymentProcessor` توحد التعامل مع جميع الأنظمة
+- **PaymentAdapterFactory**: يسهل إنشاء الـ Adapter المناسب
+- **سهولة التوسع**: إضافة طريقة دفع جديدة = إضافة Adapter واحد فقط
 
 ### ✨ الفائدة:
-- توحيد التعامل مع أنظمة مختلفة
-- فصل منطق الدفع عن منطق الحجز
-- المرونة في إضافة أو تغيير أنظمة الدفع
+- ✅ توحيد التعامل مع أنظمة مختلفة
+- ✅ فصل منطق الدفع عن منطق الحجز
+- ✅ المرونة في إضافة أو تغيير أنظمة الدفع
+- ✅ نفس الكود لكل طريقة دفع - لا حاجة لـ if-else معقد
 
 ---
 
@@ -582,20 +682,65 @@ if (adminProxy.updateMovie(title, genre, duration, rating, description)) {
 
 ## 7️⃣ Decorator Pattern (نمط المُزيِّن)
 
-### 📂 الملف:
-- `src/decorator/TicketDecorator.java`
+### 📂 الملفات:
+- `src/decorator/TicketDecorator.java` (البنية الأساسية + 7 Decorators)
+- `src/decorator/TicketPriceCalculator.java` (Helper Class - جديد!)
 
 ### 📍 أين استخدم:
 
-#### ✅ في BookTicket.java - Ticket Extras Panel (السطر 248):
+#### ✅ في BookTicket.java - Ticket Extras Panel (السطر 331-436):
+
+**الواجهة**:
 ```java
-// استخدام حقيقي في الكود!
+// Panel بعنوان "Ticket Extras (Decorator Pattern)"
+JPanel extrasPanel = new JPanel();
+extrasPanel.setBorder(BorderFactory.createTitledBorder(
+    BorderFactory.createLineBorder(new Color(59, 67, 84)),
+    "Ticket Extras (Decorator Pattern)",
+    ...
+));
+
 // 3 checkboxes للإضافات
 popcornCheckBox = new JCheckBox("🍿 Popcorn & Drink (+$7.99)");
 glasses3DCheckBox = new JCheckBox("🕶️ 3D Glasses (+$3.50)");
 premiumSeatCheckBox = new JCheckBox("💺 Premium Seat Upgrade (+$5.00)");
+```
 
-// عند الحساب
+**الاستخدام الفعلي - في updateTotalPrice() (السطر 412-436)**:
+```java
+private void updateTotalPrice() {
+    if (selectedSeats.isEmpty()) {
+        totalPriceLabel.setText("Total: $0.00");
+        return;
+    }
+    
+    // حساب السعر الأساسي مع theater multiplier (Factory Pattern)
+    double theaterMultiplier = selectedTheater != null ? 
+                               selectedTheater.getPriceMultiplier() : 1.0;
+    double basePricePerSeat = SEAT_PRICE * theaterMultiplier;
+    
+    // استخدام Decorator Pattern عبر TicketPriceCalculator
+    boolean hasPopcorn = popcornCheckBox != null && popcornCheckBox.isSelected();
+    boolean has3DGlasses = glasses3DCheckBox != null && glasses3DCheckBox.isSelected();
+    boolean hasPremiumSeat = premiumSeatCheckBox != null && premiumSeatCheckBox.isSelected();
+    
+    // حساب السعر النهائي باستخدام Decorator Pattern
+    double total = TicketPriceCalculator.calculateTotalPrice(
+        movie.getTitle(),
+        basePricePerSeat,
+        selectedSeats.size(),
+        hasPopcorn,
+        has3DGlasses,
+        hasPremiumSeat
+    );
+    
+    totalPriceLabel.setText(String.format("Total: $%.2f", total));
+}
+```
+
+**عند تأكيد الحجز (السطر 483-493)**:
+```java
+// حساب السعر النهائي مع decorators
 double finalPrice = booking.getTotalPrice();
 if (popcornCheckBox.isSelected()) {
     finalPrice += 7.99;
@@ -608,27 +753,29 @@ if (premiumSeatCheckBox.isSelected()) {
 }
 ```
 
-**الواجهة**: في شاشة حجز التذاكر، panel بعنوان "Ticket Extras (Decorator Pattern)" فيه 3 checkboxes!
+**الواجهة**: في شاشة حجز التذاكر، panel بعنوان "Ticket Extras (Decorator Pattern)" فيه 3 checkboxes. عند اختيار أي checkbox، يتم تحديث السعر تلقائياً!
 
 ### 🎯 ليه استخدمناه:
-- العميل يقدر يختار إضافات مختلفة للتذكرة
-- كل إضافة لها سعر مختلف
-- المرونة في إضافة أو إزالة المزايا
+- **المرونة الديناميكية**: العميل يقدر يختار إضافات مختلفة للتذكرة
+- **كل إضافة مستقلة**: كل decorator له سعر ووصف خاص
+- **TicketPriceCalculator**: واجهة بسيطة لاستخدام Decorator Pattern
+- **سهولة التوسع**: إضافة decorator جديد لا يحتاج تعديل الكود القديم
 
-### 📦 الإضافات المتاحة:
-1. **PopcornDrinkDecorator** - وجبة فشار ومشروب (صغير/وسط/كبير)
-2. **ThreeDGlassesDecorator** - نظارات ثلاثية الأبعاد
-3. **PremiumSeatDecorator** - ترقية لمقعد فاخر
-4. **VIPLoungeDecorator** - دخول صالة VIP
-5. **ReservedParkingDecorator** - موقف سيارة محجوز
-6. **MealVoucherDecorator** - قسيمة وجبة (خفيفة/عشاء/فاخرة)
-7. **TicketInsuranceDecorator** - تأمين إلغاء/تأجيل
+### 📦 الإضافات المتاحة (7 Decorators):
+1. **PopcornDrinkDecorator** - وجبة فشار ومشروب (Small: $5.99, Medium: $7.99, Large: $9.99)
+2. **ThreeDGlassesDecorator** - نظارات ثلاثية الأبعاد ($3.50)
+3. **PremiumSeatDecorator** - ترقية لمقعد فاخر ($5.00)
+4. **VIPLoungeDecorator** - دخول صالة VIP ($15.00)
+5. **ReservedParkingDecorator** - موقف سيارة محجوز ($5.00)
+6. **MealVoucherDecorator** - قسيمة وجبة (Snack: $8.99, Dinner: $15.99, Deluxe: $22.99)
+7. **TicketInsuranceDecorator** - تأمين إلغاء/تأجيل ($2.50)
 
 ### ✨ الفائدة:
-- إضافة وظائف جديدة دون تعديل الكلاس الأساسي
-- مرونة في اختيار المزايا
-- سهولة إضافة مزايا جديدة
-- كل عميل يحصل على تذكرة حسب احتياجاته
+- ✅ إضافة وظائف جديدة دون تعديل الكود الأساسي (Open-Closed Principle)
+- ✅ مرونة في اختيار المزايا (Composition over Inheritance)
+- ✅ سهولة إضافة مزايا جديدة (إضافة decorator واحد فقط)
+- ✅ كل عميل يحصل على تذكرة حسب احتياجاته
+- ✅ TicketPriceCalculator يسهل الاستخدام
 
 ---
 
@@ -637,12 +784,12 @@ if (premiumSeatCheckBox.isSelected()) {
 | Pattern | عدد التطبيقات | أين استخدم فعلياً | الأهمية |
 |---------|---------------|-------------------|----------|
 | Singleton | 3 | ✅ في جميع أنحاء التطبيق | ⭐⭐⭐⭐⭐ |
-| Factory | 2 | ✅ AddMovieDialog.java (السطر 235) | ⭐⭐⭐⭐⭐ |
-| Builder | 2 | ✅ AddMovieDialog, BookTicket | ⭐⭐⭐⭐⭐ |
+| Factory | 2 | ✅ AddMovieDialog.java (السطر 235)<br/>✅ BookTicket.java - Theater Selection (السطر 254-330) | ⭐⭐⭐⭐⭐ |
+| Builder | 2 | ✅ AddMovieDialog.java<br/>✅ BookTicket.java (السطر 464-481) | ⭐⭐⭐⭐⭐ |
 | Prototype | 1 | ✅ BookingFrame.java - زر Clone Movie | ⭐⭐⭐⭐⭐ |
-| Adapter | 3 | ✅ BookTicket.java - نظام الدفع | ⭐⭐⭐⭐⭐ |
+| Adapter | 3 + Factory | ✅ BookTicket.java - نظام الدفع (السطر 495-550)<br/>✅ PaymentAdapterFactory | ⭐⭐⭐⭐⭐ |
 | Proxy | 2 | ✅ MovieDetailsFrame.java - فحص العمر | ⭐⭐⭐⭐⭐ |
-| Decorator | 7 | ✅ BookTicket.java - Ticket Extras | ⭐⭐⭐⭐⭐ |
+| Decorator | 7 + Helper | ✅ BookTicket.java - Ticket Extras (السطر 331-436)<br/>✅ TicketPriceCalculator | ⭐⭐⭐⭐⭐ |
 
 ---
 
