@@ -16,6 +16,7 @@ A comprehensive desktop application for managing movie ticket bookings, built wi
 
 - [Description](#-description)
 - [Features](#-features)
+- [Screenshots](#-screenshots)
 - [Tech Stack](#-tech-stack)
 - [Design Patterns](#-design-patterns)
 - [Installation](#-installation)
@@ -97,6 +98,46 @@ The **Movie Ticket Booking System** is a full-featured desktop application that 
   - View all bookings
   - Track booking history
   - Monitor seat occupancy
+
+---
+
+## 📸 Screenshots
+
+### Authentication Screens
+
+<div align="center">
+
+#### Login Screen
+![Login Screen](assets/screen/login.png)
+
+#### Registration Screen
+![Registration Screen](assets/screen/register.png)
+
+</div>
+
+### Main Application Screens
+
+<div align="center">
+
+#### Home Screen
+![Home Screen](assets/screen/home.png)
+
+#### Movie Details Screen
+![Movie Details Screen](assets/screen/movie_details.png)
+
+#### Book Ticket Screen
+![Book Ticket Screen](assets/screen/book_ticket.png)
+
+</div>
+
+### Admin Screens
+
+<div align="center">
+
+#### Add Movie Screen
+![Add Movie Screen](assets/screen/add_movie.png)
+
+</div>
 
 ---
 
